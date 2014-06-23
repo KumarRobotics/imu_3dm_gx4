@@ -88,15 +88,15 @@ void publish_filter(const Imu::FilterData& data)
   imu_3dm_gx4::FilterStatus status;
   status.quatStatus = data.quatStatus;
   status.biasStatus = data.biasStatus;
-  
+
   pubStatus.publish(status);
-  
+
   if (broadcast_frame) {
     tf::Transform transform;
     transform.setRotation( tf::Quaternion(data.quaternion[1], data.quaternion[2], data.quaternion[3], data.quaternion[0]) );
     transform.setOrigin( tf::Vector3(0.0, 0.0, 0.0) );
-    
-    tfBroadcaster->sendTransform( tf::StampedTransform(transform, ros::Time::now(), 
+
+    tfBroadcaster->sendTransform( tf::StampedTransform(transform, ros::Time::now(),
                                                        "fixedFrame", ros::this_node::getName() + "/bodyFrame") );
   }
 }
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
   nh.param<bool>("enable_filter", enable_filter, false);
   nh.param<bool>("broadcast_frame", broadcast_frame, false);
   nh.param<bool>("enable_mag_update", enable_mag_update, true);
-  
+
   pubIMU = nh.advertise<sensor_msgs::Imu>("imu", 1);
   pubMag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
   pubPressure = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
     pubBias = nh.advertise<geometry_msgs::Vector3Stamped>("bias", 1);
     pubStatus = nh.advertise<imu_3dm_gx4::FilterStatus>("filterStatus", 1);
   }
-  
+
   if (broadcast_frame) {
     tfBroadcaster = boost::shared_ptr<tf::TransformBroadcaster>( new tf::TransformBroadcaster() );
   }
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
   {
     imu.connect();
 
-    ROS_WARN("Selecting baud rate %u", baudrate);
+    ROS_INFO("Selecting baud rate %u", baudrate);
     imu.selectBaudRate(baudrate);
 
     Imu::Info info;
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
 
     imu.imuDataCallback = publish_data;
     imu.filterDataCallback = publish_filter;
-    
+
     while (ros::ok()) {
       imu.runOnce();
     }
