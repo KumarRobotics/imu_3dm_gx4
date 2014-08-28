@@ -229,6 +229,7 @@ int main(int argc, char **argv)
 
     while (ros::ok()) {
       imu.runOnce();
+      ros::spinOnce();
     }
     imu.disconnect();
   }

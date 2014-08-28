@@ -660,13 +660,16 @@ int Imu::pollInput(unsigned int to)
     struct pollfd p;
     p.fd = fd_;
     p.events = POLLIN;
-
+    
     int rPoll = poll(&p, 1, to); // timeout is in millis
     if (rPoll > 0)
     {
         const ssize_t amt = ::read(fd_, &buffer_[0], buffer_.size());
-        if (amt >= 0) {
+        if (amt > 0) {
             return handleRead(amt);
+        } else if (amt == 0) {
+            //  end-of-file, device disconnected
+            return -1;
         }
     } else if (rPoll == 0) {
         return 0;   //  no socket can be read

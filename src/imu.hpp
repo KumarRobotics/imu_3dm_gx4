@@ -30,6 +30,7 @@ namespace imu_3dm_gx4
 /**
  *  @brief Imu Interface to the Microstrain 3DM-GX4-25 IMU
  *  @see http://www.microstrain.com/inertial/3dm-gx4-25
+ *  @author Gareth Cross
  */
 class Imu
 {
