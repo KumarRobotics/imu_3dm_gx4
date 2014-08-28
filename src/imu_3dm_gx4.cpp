@@ -18,6 +18,8 @@
 using namespace imu_3dm_gx4;
 using namespace std;
 
+#define kEarthGravity (9.80665)
+
 ros::Publisher pubIMU;
 ros::Publisher pubMag;
 ros::Publisher pubPressure;
@@ -40,10 +42,9 @@ void publish_data(const Imu::IMUData& data)
 
     imu.orientation_covariance[0] = -1; //  orientation data is on a separate topic
 
-    imu.linear_acceleration.x = data.accel[0];
-    imu.linear_acceleration.y = data.accel[1];
-    imu.linear_acceleration.z = data.accel[2];
-
+    imu.linear_acceleration.x = data.accel[0] * kEarthGravity;
+    imu.linear_acceleration.y = data.accel[1] * kEarthGravity;
+    imu.linear_acceleration.z = data.accel[2] * kEarthGravity;
     imu.angular_velocity.x = data.gyro[0];
     imu.angular_velocity.y = data.gyro[1];
     imu.angular_velocity.z = data.gyro[2];
