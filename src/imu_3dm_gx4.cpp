@@ -7,9 +7,6 @@
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/QuaternionStamped.h>
 
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_datatypes.h>
-
 #include <string>
 
 #include <imu_3dm_gx4/FilterStatus.h>
@@ -26,9 +23,6 @@ ros::Publisher pubPressure;
 ros::Publisher pubOrientation;
 ros::Publisher pubBias;
 ros::Publisher pubStatus;
-
-boost::shared_ptr<tf::TransformBroadcaster> tfBroadcaster;
-bool broadcast_frame = false;
 
 void publish_data(const Imu::IMUData& data)
 {
@@ -91,15 +85,6 @@ void publish_filter(const Imu::FilterData& data)
   status.biasStatus = data.biasStatus;
 
   pubStatus.publish(status);
-
-  if (broadcast_frame) {
-    tf::Transform transform;
-    transform.setRotation( tf::Quaternion(data.quaternion[1], data.quaternion[2], data.quaternion[3], data.quaternion[0]) );
-    transform.setOrigin( tf::Vector3(0.0, 0.0, 0.0) );
-
-    tfBroadcaster->sendTransform( tf::StampedTransform(transform, ros::Time::now(),
-                                                       "fixedFrame", ros::this_node::getName() + "/bodyFrame") );
-  }
 }
 
 int main(int argc, char **argv)
@@ -120,7 +105,6 @@ int main(int argc, char **argv)
   nh.param<int>("imu_decimation", imu_decimation, 10);
   nh.param<int>("filter_decimation", filter_decimation, 5);
   nh.param<bool>("enable_filter", enable_filter, false);
-  nh.param<bool>("broadcast_frame", broadcast_frame, false);
   nh.param<bool>("enable_mag_update", enable_mag_update, true);
 
   pubIMU = nh.advertise<sensor_msgs::Imu>("imu", 1);
@@ -132,14 +116,9 @@ int main(int argc, char **argv)
     pubBias = nh.advertise<geometry_msgs::Vector3Stamped>("bias", 1);
     pubStatus = nh.advertise<imu_3dm_gx4::FilterStatus>("filterStatus", 1);
   }
-
-  if (broadcast_frame) {
-    tfBroadcaster = boost::shared_ptr<tf::TransformBroadcaster>( new tf::TransformBroadcaster() );
-  }
-
+  
   //  new instance of the IMU
   Imu imu(device);
-
   try
   {
     imu.connect();
