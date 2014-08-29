@@ -493,9 +493,9 @@ int Imu::setIMUDataRate(uint16_t decimation, unsigned int sources) {
   static const uint8_t fieldDescs[] = { 0x04, 0x05, 0x06, 0x17 };
   uint8_t descCount = 0;
 
-  unsigned int bPos;
+  int bPos;
   while ((bPos = getNextBit(sources)) >= 0) {
-    if (bPos >= sizeof(fieldDescs)) {
+    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
       throw invalid_argument("Invalid data source requested!");
     }
 
@@ -520,9 +520,9 @@ int Imu::setFilterDataRate(uint16_t decimation, unsigned int sources) {
   static const uint8_t fieldDescs[] = { 0x03, 0x06 };
   uint8_t descCount = 0;
 
-  unsigned int bPos;
+  int bPos;
   while ((bPos = getNextBit(sources)) >= 0) {
-    if (bPos >= sizeof(fieldDescs)) {
+    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
       throw invalid_argument("Invalid data source requested!");
     }
 
