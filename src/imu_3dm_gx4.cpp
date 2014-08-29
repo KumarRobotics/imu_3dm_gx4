@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
     ROS_INFO("Selecting filter decimation rate: %u", filter_decimation);
     assert_throw(
         imu.setFilterDataRate(filter_decimation, Imu::FilterData::Quaternion |
-                                                     Imu::FilterData::Bias));
+                                                 Imu::FilterData::Bias));
 
     ROS_INFO("Enabling IMU data stream");
     assert_throw(imu.enableIMUStream(true));

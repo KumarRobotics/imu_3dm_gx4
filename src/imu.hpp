@@ -17,6 +17,7 @@
 #include <deque>
 #include <queue>
 #include <vector>
+#include <bitset>
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ //  will fail outside of gcc/clang
 #define HOST_LITTLE_ENDIAN
@@ -105,6 +106,7 @@ public:
       for (size_t s=0; s < length; s++) {
         printf("%x ", payload[s]);
       }
+      printf("Check MSB/LSB: %x/%x\n", checkMSB, checkLSB);
       printf("\n");
     }
     
@@ -318,7 +320,7 @@ public:
    * @return 0 on timeout, negative value if NACK is received, positive on
    * success.
    */
-  int setIMUDataRate(uint16_t decimation, unsigned int sources);
+  int setIMUDataRate(uint16_t decimation, const std::bitset<4> &sources);
 
   /**
    * @brief setFilterDataRate Set estimator data rate for different sources.
@@ -330,7 +332,7 @@ public:
    * @return 0 on timeout, negative value if NACK is received, positive on
    * success.
    */
-  int setFilterDataRate(uint16_t decimation, unsigned int sources);
+  int setFilterDataRate(uint16_t decimation, const std::bitset<2> &sources);
 
   /**
    * @brief enableMeasurements Set which measurements to enable in the filter
@@ -418,7 +420,7 @@ private:
   int sendCommand(const Packet &p, unsigned int to);
 
   bool termiosBaudRate(unsigned int baud);
-
+  
   const std::string device_;
 
   int fd_;
