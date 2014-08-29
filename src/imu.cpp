@@ -654,6 +654,14 @@ int Imu::enableFilterStream(bool enabled)
     return sendCommand(p, kTimeout);
 }
 
+void Imu::setIMUDataCallback(const std::function<void (const Imu::IMUData&)>& cb) {
+  imuDataCallback_ = cb;
+}
+
+void Imu::setFilterDataCallback(const std::function<void (const Imu::FilterData&)>& cb) {
+  filterDataCallback_ = cb;
+}
+
 int Imu::pollInput(unsigned int to)
 {  
     //  poll socket for inputs
@@ -811,8 +819,8 @@ void Imu::processPacket()
             idx += len;
         }
 
-        if (this->imuDataCallback) {
-            imuDataCallback(data);
+        if (this->imuDataCallback_) {
+            imuDataCallback_(data);
         }
     }
     else if ( packet_.is_filter_data() ) {
@@ -845,8 +853,8 @@ void Imu::processPacket()
         idx += len;
       }
 
-      if (this->filterDataCallback) {
-        filterDataCallback(filterData);
+      if (this->filterDataCallback_) {
+        filterDataCallback_(filterData);
       }
     }
     else if ( packet_.is_ack() ) {

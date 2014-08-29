@@ -372,11 +372,18 @@ public:
      */
     int enableFilterStream(bool enabled);
     
-    /* Public properties */
+    /**
+     * @brief Set the IMU data callback.
+     * @note The IMU data callback is called every time new IMU data is read.
+     */
+    void setIMUDataCallback(const std::function<void (const Imu::IMUData&)>&);
     
-    std::function<void (const Imu::IMUData&)> imuDataCallback;        /**< Called with IMU data is ready */
-    std::function<void (const Imu::FilterData&)> filterDataCallback;  /**< Called when filter data is ready */
-    
+    /**
+     * @brief Set the onboard filter data callback.
+     * @note The filter data is called every time new orientation data is read.
+     */
+    void setFilterDataCallback(const std::function<void (const Imu::FilterData&)>&);
+   
 private:
     
     //  non-copyable
@@ -406,6 +413,9 @@ private:
     std::vector<uint8_t> buffer_;
     std::deque<uint8_t> queue_;
     size_t srcIndex_, dstIndex_;
+    
+    std::function<void (const Imu::IMUData&)> imuDataCallback_;        /**< Called with IMU data is ready */
+    std::function<void (const Imu::FilterData&)> filterDataCallback_;  /**< Called when filter data is ready */    
     
     enum {
         Idle = 0,

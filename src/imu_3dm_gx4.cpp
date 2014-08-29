@@ -24,6 +24,9 @@ ros::Publisher pubOrientation;
 ros::Publisher pubBias;
 ros::Publisher pubStatus;
 
+//  standard deviations for noise
+double accel_std[3], gyro_std[3], mag_std[3], fluid_std;
+
 void publish_data(const Imu::IMUData& data)
 {
     sensor_msgs::Imu imu;
@@ -90,7 +93,6 @@ void publish_filter(const Imu::FilterData& data)
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "imu_3dm_gx4");
-
   ros::NodeHandle nh("~");
 
   std::string device;
@@ -105,8 +107,8 @@ int main(int argc, char **argv)
   nh.param<int>("imu_decimation", imu_decimation, 10);
   nh.param<int>("filter_decimation", filter_decimation, 5);
   nh.param<bool>("enable_filter", enable_filter, false);
-  nh.param<bool>("enable_mag_update", enable_mag_update, true);
-
+  nh.param<bool>("enable_mag_update", enable_mag_update, false);
+  
   pubIMU = nh.advertise<sensor_msgs::Imu>("imu", 1);
   pubMag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
   pubPressure = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
@@ -204,8 +206,8 @@ int main(int argc, char **argv)
 
 #undef assert_throw
 
-    imu.imuDataCallback = publish_data;
-    imu.filterDataCallback = publish_filter;
+    imu.setIMUDataCallback(publish_data);
+    imu.setFilterDataCallback(publish_filter);
 
     while (ros::ok()) {
       imu.runOnce();
