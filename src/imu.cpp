@@ -83,6 +83,43 @@ size_t encode(uint8_t *buffer, const T &t, const Ts &... ts) {
   return sz + encode(buffer + sizeof(T), ts...);
 }
 
+class PacketEncoder {
+public:
+  PacketEncoder(Imu::Packet& p) : p_(p), fs_(0), enc_(false) {
+    p.length = 0;
+  }
+  virtual ~PacketEncoder() {
+    //  no destruction without completion
+    assert(!enc_);
+  }
+  
+  void beginField(uint8_t desc) {
+    assert(!enc_);
+    assert(p_.length < sizeof(p_.payload) - 2); //  2 bytes per field minimum
+    fs_ = p_.length;
+    p_.payload[fs_+1] = desc;
+    p_.length += 2;
+    enc_ = true;
+  }
+  
+  template <typename ...Ts>
+  void append(const Ts& ...args) {
+    assert(enc_); //  todo: check argument length here
+    p_.length += encode(p_.payload+p_.length, args...);
+  }
+  
+  void endField() {
+    assert(enc_);
+    p_.payload[fs_] = p_.length - fs_;
+    enc_ = false;
+  }
+  
+private:
+  Imu::Packet& p_;
+  uint8_t fs_;
+  bool enc_;
+};
+
 //  note: changed decoder from tuple to array to deal with gcc's bullshit
 
 template <typename T> void decode(uint8_t *buffer, size_t count, T *output) {
@@ -477,7 +514,37 @@ template <typename T> int getNextBit(T &val) {
 }
 
 int Imu::setIMUDataRate(uint16_t decimation, unsigned int sources) {
-  Imu::Packet p(0x0C, 0x04);
+  Imu::Packet p(0x0C);  //  was 0x04
+  PacketEncoder encoder(p);
+  
+  //  valid field descriptors: accel, gyro, mag, pressure
+  static const uint8_t fieldDescs[] = { 0x04, 0x05, 0x06, 0x17 };
+  std::vector<uint8_t> fields;
+
+  int bPos;
+  auto backup = sources;
+  while ((bPos = getNextBit(sources)) >= 0) {
+    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
+      throw invalid_argument("Invalid data source requested: " + 
+                             std::to_string(bPos));
+    }
+    fields.push_back(fieldDescs[bPos]);
+  }
+  
+  encoder.beginField(0x08);
+  encoder.append(u8(0x01), u8(fields.size())); //  function and # of fields
+  
+  for (const uint8_t& field : fields) {
+    encoder.append(field, decimation);
+  }
+  
+  encoder.endField();
+  p.calcChecksum();
+  p.print();
+  
+  auto sum = p.checksum;
+  
+  p.length = 4;
   p.payload[0] = 0x00; //  field length
   p.payload[1] = 0x08;
   p.payload[2] = 0x01; //  function
@@ -489,13 +556,10 @@ int Imu::setIMUDataRate(uint16_t decimation, unsigned int sources) {
   //  Magnetometer    bit 2
   //  Barometer       bit 3
 
-  //  these correspond to numbers in the device manual
-  static const uint8_t fieldDescs[] = { 0x04, 0x05, 0x06, 0x17 };
-  uint8_t descCount = 0;
-
-  unsigned int bPos;
+  uint8_t descCount;
+  sources = backup;
   while ((bPos = getNextBit(sources)) >= 0) {
-    if (bPos >= sizeof(fieldDescs)) {
+    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
       throw invalid_argument("Invalid data source requested!");
     }
 
@@ -507,11 +571,14 @@ int Imu::setIMUDataRate(uint16_t decimation, unsigned int sources) {
   p.payload[0] = 4 + 3 * descCount;
 
   p.calcChecksum();
+  p.print();
+  assert(p.checksum == sum);
   return sendCommand(p, kTimeout);
 }
 
 int Imu::setFilterDataRate(uint16_t decimation, unsigned int sources) {
   Imu::Packet p(0x0C, 0x04);
+ 
   p.payload[0] = 0x00; //  field length
   p.payload[1] = 0x0A;
   p.payload[2] = 0x01; //  function
@@ -520,9 +587,9 @@ int Imu::setFilterDataRate(uint16_t decimation, unsigned int sources) {
   static const uint8_t fieldDescs[] = { 0x03, 0x06 };
   uint8_t descCount = 0;
 
-  unsigned int bPos;
+  int bPos;
   while ((bPos = getNextBit(sources)) >= 0) {
-    if (bPos >= sizeof(fieldDescs)) {
+    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
       throw invalid_argument("Invalid data source requested!");
     }
 
@@ -601,6 +668,16 @@ int Imu::setSoftIronMatrix(float matrix[9]) {
 }
 
 int Imu::enableIMUStream(bool enabled) {
+  /*Packet p(0x0C);
+  PacketEncoder encoder(p);
+  
+  encoder.beginField(0x11);
+  encoder.append(u8(0x01), u8(0x01));
+  encoder.append(u8(enabled));
+  encoder.endField();
+  p.calcChecksum();
+  return sendCommand(p, kTimeout);*/
+  
   Packet p(0x0C, 0x05);
   p.payload[0] = 0x05;
   p.payload[1] = 0x11;
@@ -609,6 +686,7 @@ int Imu::enableIMUStream(bool enabled) {
   p.payload[4] = (enabled == true);
 
   p.calcChecksum();
+  printf("Check MSB: %u, LSB: %u", p.checkMSB, p.checkLSB);
   return sendCommand(p, kTimeout);
 }
 

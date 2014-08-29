@@ -4,6 +4,16 @@
 
 The `imu_3dm_gx4` package provides support for the [Lord Corporation](http://www.microstrain.com) Microstrain [3DM-GX4-25](http://www.microstrain.com/inertial/3dm-gx4-25) series IMU. The package employs the MIP packet format, so it could conceivably be adapted to support other versions of Microstrain products with relatively little effort. At present, the 15 and 45 series AHRS systems are not supported.
 
+## Version History
+
+* **0.0.2**:
+  - Units of acceleration are now m/s^2, in agreement with ROS convention.
+  - 
+  - Removed TF broadcast option.
+  - Reformated code base to clang-llvm convention.
+* **0.0.1**:
+  - First release.
+
 ## Options
 
 The `imu_3dm_gx4` node supports the following base options:
@@ -15,7 +25,6 @@ The following additional options are present for leveraging the 3DM's onboard es
 * `enable_filter`: If true, the IMU estimation filter is enabled. Default is false.
 * `filter_decimation`: Estimation filter rate to use. Determines the filter data rate according to: `hz = 500 / decimation`. Default is 5.
 * `enable_mag_update`: If true, the IMU will use the magnetometer to correct the heading angle estimate. Default is false.
-* `broadcast_frame`: If true, the filter quaternion will be broadcasted as a TF frame.
 
 **In order to launch the node** (streaming IMU data at 100Hz), execute:
 

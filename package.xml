@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>imu_3dm_gx4</name>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
   <description>The imu_3dm_gx4 package</description>
 
   <maintainer email="gcross.code@icloud.com">gcross</maintainer>

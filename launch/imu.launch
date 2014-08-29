@@ -9,7 +9,7 @@
     <arg name="device" default="/dev/ttyACM0" />
 
     <!-- Decimation value x, where freq = 1000 / x -->
-    <arg name="imu_decimation" default="10"/>
+    <arg name="imu_decimation" default="5"/>
 
     <node pkg="imu_3dm_gx4" name="$(arg imu_node)" type="imu_3dm_gx4" output="screen">
         <param name="device" type="string" value="$(arg device)" />
