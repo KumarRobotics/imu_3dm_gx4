@@ -834,7 +834,9 @@ void Imu::enableIMUStream(bool enabled) {
   encoder.append(u8(enabled));
   encoder.endField();
   p.calcChecksum();
-  assert(p.checkMSB == 0x04 && p.checkLSB == 0x1A);
+  if (enabled) {
+    assert(p.checkMSB == 0x04 && p.checkLSB == 0x1A);
+  }
   sendCommand(p);
 }
 
@@ -846,7 +848,9 @@ void Imu::enableFilterStream(bool enabled) {
   encoder.append(u8(enabled));
   encoder.endField();
   p.calcChecksum();
-  assert(p.checkMSB == 0x06 && p.checkLSB == 0x1E);
+  if (enabled) {
+    assert(p.checkMSB == 0x06 && p.checkLSB == 0x1E);
+  }
   sendCommand(p);
 }
 

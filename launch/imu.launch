@@ -16,7 +16,7 @@
     <arg name="filter_decimation" default="5"/>
 
     <!-- Enable/Disable the filter -->
-    <arg name="enable_filter" value="true"/>
+    <arg name="enable_filter" value="false"/>
 
     <!-- Enable/Disable filter updates -->
     <arg name="enable_accel_update" value="false"/>

@@ -249,7 +249,9 @@ int main(int argc, char **argv) {
     double imuRate = imuBaseRate / (1.0 * imu_decimation);
     double filterRate = filterBaseRate / (1.0 * filter_decimation);
     imuDiag = configTopicDiagnostic("imu",&imuRate);
-    filterDiag = configTopicDiagnostic("filter",&filterRate);
+    if (enable_filter) {
+      filterDiag = configTopicDiagnostic("filter",&filterRate);
+    }
     
     updater->add("diagnostic_info", 
                  boost::bind(&updateDiagnosticInfo, _1, &imu));
