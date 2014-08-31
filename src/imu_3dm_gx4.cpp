@@ -129,6 +129,7 @@ int main(int argc, char **argv) {
     imu.selectBaudRate(baudrate);
 
     Imu::Info info;
+    ROS_INFO("Fetching device info.");
     if (imu.getDeviceInfo(info)) {
       ROS_INFO("Retrieved device info:");
       ROS_INFO("\tFirmware version: %u", info.firmwareVersion);
@@ -220,7 +221,6 @@ int main(int argc, char **argv) {
 
     while (ros::ok()) {
       imu.runOnce();
-      ros::spinOnce();
     }
     imu.disconnect();
   }
@@ -228,8 +228,7 @@ int main(int argc, char **argv) {
     ROS_ERROR("IO error: %s\n", e.what());
   }
   catch (Imu::timeout_error &e) {
-    ROS_ERROR("Write timed out (class,length,timeout): 0x%02x, 0x%02x, 0x%02x\n", 
-              e.pDesc, e.pLength, e.to);
+    ROS_ERROR("Timeout: %s\n", e.what());
   }
   catch (std::exception &e) {
     ROS_ERROR("Exception: %s\n", e.what());

@@ -178,8 +178,13 @@ public:
 
   /* Exceptions */
 
-  struct packet_error : public std::runtime_error {
-    packet_error(const std::string& desc) : std::runtime_error(desc) {}
+  /**
+   * @brief command_error Generated when device replies with NACK.
+   */
+  struct command_error : public std::runtime_error {
+    command_error(const Packet& p, uint8_t code);
+  private:
+    std::string generateString(const Packet& p, uint8_t code);
   };
   
   /**
@@ -190,17 +195,13 @@ public:
   };
 
   /**
-   * @brief timeout_error Generated when write() times out, usually indicates
-   * device hang up.
+   * @brief timeout_error Generated when read or write times out, usually 
+   * indicates device hang up.
    */
-  struct timeout_error : public std::exception {
-    timeout_error(uint8_t desc, 
-                  uint8_t length,
-                  unsigned int to) : pDesc(desc), pLength(length), to(to) {}
-
-    uint8_t pDesc;    //  packet descriptor
-    uint8_t pLength;  //  packet length
-    unsigned int to;  //  timeout value
+  struct timeout_error : public std::runtime_error {
+    timeout_error(bool write, unsigned int to);
+  private:
+    std::string generateString(bool write, unsigned int to);
   };
 
   /**

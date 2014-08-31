@@ -307,20 +307,43 @@ void Imu::Packet::calcChecksum() {
 
 Imu::Packet::Packet(uint8_t desc, uint8_t len)
     : syncMSB(kSyncMSB), syncLSB(kSyncLSB), descriptor(desc), length(len),
-      checksum(0) {}
+      checksum(0) {
+  memset(&payload, 0, sizeof(payload));
+}
 
 std::string Imu::Packet::toString() const {
   std::stringstream ss;
   ss << std::hex;
-  ss << "Sync: " << sync << "\n";
-  ss << "Descriptor: " << descriptor << "\n";
-  ss << "Length: " << length << "\n";
+  ss << "Sync: " << static_cast<int>(sync) << "\n";
+  ss << "Descriptor: " << static_cast<int>(descriptor) << "\n";
+  ss << "Length: " << static_cast<int>(length) << "\n";
   ss << "Payload: ";
   for (size_t s=0; s < length; s++) {
-    ss << payload[s] << " ";
+    ss << static_cast<int>(payload[s]) << " ";
   }
-  ss << "\nCheck MSB: " << checkMSB << "\n";
-  ss << "Check LSB: " << checkLSB;
+  ss << "\nCheck MSB: " << static_cast<int>(checkMSB) << "\n";
+  ss << "Check LSB: " << static_cast<int>(checkLSB);
+  return ss.str();
+}
+
+Imu::command_error::command_error(const Packet& p, uint8_t code) : 
+  std::runtime_error(generateString(p, code)) {}
+
+std::string Imu::command_error::generateString(const Packet& p, uint8_t code) {
+  std::stringstream ss;
+  ss << "Received NACK with error code " << std::hex << static_cast<int>(code);
+  ss << ". Command Packet:\n" << p.toString();
+  return ss.str();
+}
+
+Imu::timeout_error::timeout_error(bool write, unsigned int to)
+    : std::runtime_error(generateString(write,to)) {}
+
+std::string Imu::timeout_error::generateString(bool write, 
+                                               unsigned int to) {
+  std::stringstream ss;
+  ss << "Timed-out while " << ((write) ? "writing" : "reading") << ". ";
+  ss << "Time-out limit is " << to << "ms.";
   return ss.str();
 }
 
@@ -1156,38 +1179,38 @@ void Imu::sendPacket(const Packet &p, unsigned int to) {
   if (wrote < 0) {
     throw io_error(strerror(errno));
   } else if (wrote == 0) {
-    throw timeout_error(p.descriptor, p.length, to);
+    throw timeout_error(true,to);
   }
 }
 
-int Imu::receiveResponse(const Packet &command, unsigned int to) {
+void Imu::receiveResponse(const Packet &command, unsigned int to) {
   //  read back response
-  auto tstart = std::chrono::high_resolution_clock::now();
-  auto tend = tstart + std::chrono::milliseconds(to);
+  const auto tstart = std::chrono::high_resolution_clock::now();
+  const auto tend = tstart + std::chrono::milliseconds(to);
 
   while (std::chrono::high_resolution_clock::now() <= tend) {
-    auto resp = pollInput(1);
+    const auto resp = pollInput(1);
     if (resp > 0) {
       //  check if this is an ack
-      int ack = packet_.ackErrorCodeFor(command);
-
+      const int ack = packet_.ackErrorCodeFor(command);
+      
       if (ack == 0) {
-        return 1;
+        return; //  success, exit
       } else if (ack > 0) {
-       // ROS_WARN("Warning: Received NACK code %x for command {%x, %x}", ack,
-        //         command.descriptor, command.payload[1]);
-        return -ack;
+        throw command_error(command, ack);
       }
+      //  ack < 0, this packet was not for us
     } else if (resp < 0) {
       throw io_error(strerror(errno));
     }
+    //  resp == 0 keep reading
   }
 
-  //  unreachable
-  return 0;
+  //  timed out
+  throw timeout_error(false, to);  
 }
 
-int Imu::sendCommand(const Packet &p) {
+void Imu::sendCommand(const Packet &p) {
   sendPacket(p, rwTimeout_);
-  return receiveResponse(p, rwTimeout_);
+  receiveResponse(p, rwTimeout_);
 }
