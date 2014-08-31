@@ -9,7 +9,7 @@
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/QuaternionStamped.h>
 
-#include <imu_3dm_gx4/FilterStatus.h>
+#include <imu_3dm_gx4/FilterOutput.h>
 #include "imu.hpp"
 
 using namespace imu_3dm_gx4;
@@ -19,9 +19,7 @@ using namespace imu_3dm_gx4;
 ros::Publisher pubIMU;
 ros::Publisher pubMag;
 ros::Publisher pubPressure;
-ros::Publisher pubOrientation;
-ros::Publisher pubBias;
-ros::Publisher pubStatus;
+ros::Publisher pubFilter;
 
 Imu::Info info;
 Imu::DiagnosticFields fields;
@@ -37,6 +35,7 @@ void publish_data(const Imu::IMUData &data) {
   sensor_msgs::FluidPressure pressure;
 
   //  assume we have all of these since they were requested
+  /// @todo: Replace this with a mode graceful failure...
   assert(data.fields & Imu::IMUData::Accelerometer);
   assert(data.fields & Imu::IMUData::Magnetometer);
   assert(data.fields & Imu::IMUData::Barometer);
@@ -75,29 +74,35 @@ void publish_data(const Imu::IMUData &data) {
 void publish_filter(const Imu::FilterData &data) {
   assert(data.fields & Imu::FilterData::Quaternion);
   assert(data.fields & Imu::FilterData::Bias);
+  assert(data.fields & Imu::FilterData::AngleUnertainty);
+  assert(data.fields & Imu::FilterData::BiasUncertainty);
   
-  geometry_msgs::QuaternionStamped orientation;
-  orientation.header.stamp = ros::Time::now();
-  orientation.quaternion.w = data.quaternion[0];
-  orientation.quaternion.x = data.quaternion[1];
-  orientation.quaternion.y = data.quaternion[2];
-  orientation.quaternion.z = data.quaternion[3];
+  imu_3dm_gx4::FilterOutput output;
+  output.header.stamp = ros::Time::now();
+  output.orientation.w = data.quaternion[0];
+  output.orientation.x = data.quaternion[1];
+  output.orientation.y = data.quaternion[2];
+  output.orientation.z = data.quaternion[3];
+  output.bias.x = data.bias[0];
+  output.bias.y = data.bias[1];
+  output.bias.z = data.bias[2];
 
-  geometry_msgs::Vector3Stamped bias;
-  bias.header.stamp = orientation.header.stamp;
-  bias.vector.x = data.bias[0];
-  bias.vector.y = data.bias[1];
-  bias.vector.z = data.bias[2];
-
-  imu_3dm_gx4::FilterStatus status;
-  status.quatStatus = data.quatStatus;
-  status.biasStatus = data.biasStatus;
-
-  pubOrientation.publish(orientation);
-  pubBias.publish(bias);
-  pubStatus.publish(status);
+  output.bias_covariance[0] = data.biasUncertainty[0]*data.biasUncertainty[0];
+  output.bias_covariance[4] = data.biasUncertainty[1]*data.biasUncertainty[1];
+  output.bias_covariance[8] = data.biasUncertainty[2]*data.biasUncertainty[2];
+  
+  output.orientation_covariance[0] = data.angleUncertainty[0]*data.angleUncertainty[0];
+  output.orientation_covariance[4] = data.angleUncertainty[1]*data.angleUncertainty[1];
+  output.orientation_covariance[8] = data.angleUncertainty[2]*data.angleUncertainty[2];
+  
+  output.quat_status = data.quaternionStatus;
+  output.bias_status = data.biasStatus;
+  output.orientation_covariance_status = data.angleUncertaintyStatus;
+  output.bias_covariance_status = data.biasUncertaintyStatus;
+  
+  pubFilter.publish(output);
   if (filterDiag) {
-    filterDiag->tick(orientation.header.stamp);
+    filterDiag->tick(output.header.stamp);
   }
 }
 
@@ -163,10 +168,7 @@ int main(int argc, char **argv) {
   pubPressure = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
 
   if (enable_filter) {
-    pubOrientation =
-        nh.advertise<geometry_msgs::QuaternionStamped>("orientation", 1);
-    pubBias = nh.advertise<geometry_msgs::Vector3Stamped>("bias", 1);
-    pubStatus = nh.advertise<imu_3dm_gx4::FilterStatus>("filterStatus", 1);
+    pubFilter = nh.advertise<imu_3dm_gx4::FilterOutput>("filter", 1);
   }
 
   //  new instance of the IMU
@@ -196,13 +198,16 @@ int main(int argc, char **argv) {
 
     ROS_INFO("Selecting IMU decimation rate: %u", imu_decimation);
     imu.setIMUDataRate(
-        imu_decimation, Imu::IMUData::Accelerometer | Imu::IMUData::Gyroscope |
-                            Imu::IMUData::Magnetometer |
-                            Imu::IMUData::Barometer);
+        imu_decimation, Imu::IMUData::Accelerometer | 
+          Imu::IMUData::Gyroscope |
+          Imu::IMUData::Magnetometer |
+          Imu::IMUData::Barometer);
 
     ROS_INFO("Selecting filter decimation rate: %u", filter_decimation);
     imu.setFilterDataRate(filter_decimation, Imu::FilterData::Quaternion |
-                                                 Imu::FilterData::Bias);
+                          Imu::FilterData::Bias |
+                          Imu::FilterData::AngleUnertainty |
+                          Imu::FilterData::BiasUncertainty);
 
     ROS_INFO("Enabling IMU data stream");
     imu.enableIMUStream(true);
@@ -235,7 +240,7 @@ int main(int argc, char **argv) {
     double imuRate = imuBaseRate / (1.0 * imu_decimation);
     double filterRate = filterBaseRate / (1.0 * filter_decimation);
     imuDiag = configTopicDiagnostic("imu",&imuRate);
-    filterDiag = configTopicDiagnostic("orientation",&filterRate);
+    filterDiag = configTopicDiagnostic("filter",&filterRate);
     
     updater->add("diagnostic_info", 
                  boost::bind(&updateDiagnosticInfo, _1, &imu));

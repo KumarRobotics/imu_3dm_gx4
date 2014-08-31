@@ -68,17 +68,19 @@ extern "C" {
 #define COMMAND_DEVICE_STATUS         u8(0x64)
 
 //  supported fields
-#define FIELD_QUATERNION      u8(0x03)
-#define FIELD_ACCELEROMETER   u8(0x04)
-#define FIELD_GYROSCOPE       u8(0x05)
-#define FIELD_GYRO_BIAS       u8(0x06)
-#define FIELD_MAGNETOMETER    u8(0x06)
-#define FIELD_BAROMETER       u8(0x17)
-#define FIELD_DEVICE_INFO     u8(0x81)
-#define FIELD_IMU_BASERATE    u8(0x83)
-#define FIELD_FILTER_BASERATE u8(0x8A)
-#define FIELD_STATUS_REPORT   u8(0x90)
-#define FIELD_ACK_OR_NACK     u8(0xF1)
+#define FIELD_QUATERNION        u8(0x03)
+#define FIELD_ACCELEROMETER     u8(0x04)
+#define FIELD_GYROSCOPE         u8(0x05)
+#define FIELD_GYRO_BIAS         u8(0x06)
+#define FIELD_MAGNETOMETER      u8(0x06)
+#define FIELD_ANGLE_UNCERTAINTY u8(0x0A)
+#define FIELD_BIAS_UNCERTAINTY  u8(0x0B)
+#define FIELD_BAROMETER         u8(0x17)
+#define FIELD_DEVICE_INFO       u8(0x81)
+#define FIELD_IMU_BASERATE      u8(0x83)
+#define FIELD_FILTER_BASERATE   u8(0x8A)
+#define FIELD_STATUS_REPORT     u8(0x90)
+#define FIELD_ACK_OR_NACK       u8(0xF1)
 
 using namespace imu_3dm_gx4;
 
@@ -740,12 +742,14 @@ void Imu::setIMUDataRate(uint16_t decimation,
   sendCommand(p);
 }
 
-void Imu::setFilterDataRate(uint16_t decimation, const std::bitset<2>& sources) {
+void Imu::setFilterDataRate(uint16_t decimation, const std::bitset<4>& sources) {
   Imu::Packet p(COMMAND_CLASS_3DM);  //  was 0x04
   PacketEncoder encoder(p);
  
   static const uint8_t fieldDescs[] = { FIELD_QUATERNION,
-                                        FIELD_GYRO_BIAS };
+                                        FIELD_GYRO_BIAS,
+                                        FIELD_ANGLE_UNCERTAINTY,
+                                        FIELD_BIAS_UNCERTAINTY };
   assert(sizeof(fieldDescs) == sources.size());
   std::vector<uint8_t> fields;
   
@@ -972,7 +976,7 @@ void Imu::processPacket() {
   if (packet_.isIMUData()) {
     //  process all fields in the packet
     for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
-      switch (d) {
+      switch (u8(d)) {
       case FIELD_ACCELEROMETER:
         decoder.extract(3, &data.accel[0]);
         data.fields |= IMUData::Accelerometer;
@@ -1002,14 +1006,26 @@ void Imu::processPacket() {
     }
   } else if (packet_.isFilterData()) {
     for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
-      switch (d) {
+      switch (u8(d)) {
       case FIELD_QUATERNION:
         decoder.extract(4, &filterData.quaternion[0]);
+        decoder.extract(1, &filterData.quaternionStatus);
         filterData.fields |= FilterData::Quaternion;
         break;
       case FIELD_GYRO_BIAS:
         decoder.extract(3, &filterData.bias[0]);
+        decoder.extract(1, &filterData.biasStatus);
         filterData.fields |= FilterData::Bias;
+        break;
+      case FIELD_ANGLE_UNCERTAINTY:
+        decoder.extract(3, &filterData.angleUncertainty[0]);
+        decoder.extract(1, &filterData.angleUncertaintyStatus);
+        filterData.fields |= FilterData::AngleUnertainty;
+        break;
+      case FIELD_BIAS_UNCERTAINTY:
+        decoder.extract(3, &filterData.biasUncertainty[0]);
+        decoder.extract(1, &filterData.biasUncertaintyStatus);
+        filterData.fields |= FilterData::BiasUncertainty;
         break;
       default:
         std::stringstream ss;

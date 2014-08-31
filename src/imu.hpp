@@ -32,7 +32,7 @@ namespace imu_3dm_gx4 {
  * @brief Imu Interface to the Microstrain 3DM-GX4-25 IMU
  * @see http://www.microstrain.com/inertial/3dm-gx4-25
  * @author Gareth Cross
- * 
+ *
  * @note Error handling: All methods which communicate with the device
  * can throw the exceptions below: io_error, timeout_error, command_error and
  * std::runtime_error. Additional exceptions are indicated on specific
@@ -96,7 +96,7 @@ public:
      * @param len Length of the packet payload.
      */
     Packet(uint8_t desc = 0);
-    
+
     /**
      * @brief Make a 'human-readable' version of the packet.
      * @return std::string
@@ -114,11 +114,11 @@ public:
     std::string serialNumber;  /// Serial number
     std::string lotNumber;     /// Lot number - appears to be unused
     std::string deviceOptions; /// Device options (range of the sensor)
-    
+
     /**
      * @brief Conver to map of human readable strings.
      */
-    std::map <std::string, std::string> toMap() const;
+    std::map<std::string, std::string> toMap() const;
   };
 
   /**
@@ -146,12 +146,12 @@ public:
     uint32_t numIMUParseErrors;
     uint32_t totalIMUMessages;
     uint32_t lastIMUMessage;
-    
+
     /**
      * @brief Convert to map of human readable strings and integers.
      */
-    std::map <std::string, unsigned int> toMap() const;
-    
+    std::map<std::string, unsigned int> toMap() const;
+
   } __attribute__((packed));
 
   /**
@@ -179,16 +179,28 @@ public:
    * @brief FilterData Estimator readings produced by the sensor
    */
   struct FilterData {
-    enum { Quaternion = (1 << 0), Bias = (1 << 1), };
+    enum {
+      Quaternion = (1 << 0),
+      Bias = (1 << 1),
+      AngleUnertainty = (1 << 2),
+      BiasUncertainty = (1 << 3),
+    };
 
-    unsigned int fields; /**< Which fields are valid in the struct */
+    unsigned int fields; /**< Which fields are present in the struct. */
 
     float quaternion[4]; /**< Orientation quaternion (q0,q1,q2,q3) */
-    uint16_t quatStatus; /**< Quaternion status: 0 = invalid, 1 = valid, 2 =
-                            georeferenced to magnetic north */
+    uint16_t
+    quaternionStatus; /**< Quaternion status: 0 = invalid, 1 = valid, 2 =
+                   georeferenced to magnetic north */
 
-    float bias[3]; /**< Gyro bias */
-    uint16_t biasStatus;
+    float bias[3];       /**< Gyro bias */
+    uint16_t biasStatus; /**< Bias status: 0 = invalid, 1 = valid */
+
+    float angleUncertainty[3];       /**< 1-sigma angle uncertainty */
+    uint16_t angleUncertaintyStatus; /**< 0 = invalid, 1 = valid */
+
+    float biasUncertainty[3];       /**< 1-sigma bias uncertainty */
+    uint16_t biasUncertaintyStatus; /**< 0 = invalid, 1 = valid */
 
     FilterData() : fields(0) {}
   };
@@ -199,11 +211,12 @@ public:
    * @brief command_error Generated when device replies with NACK.
    */
   struct command_error : public std::runtime_error {
-    command_error(const Packet& p, uint8_t code);
+    command_error(const Packet &p, uint8_t code);
+
   private:
-    std::string generateString(const Packet& p, uint8_t code);
+    std::string generateString(const Packet &p, uint8_t code);
   };
-  
+
   /**
    * @brief io_error Generated when a low-level IO command fails.
    */
@@ -212,11 +225,12 @@ public:
   };
 
   /**
-   * @brief timeout_error Generated when read or write times out, usually 
+   * @brief timeout_error Generated when read or write times out, usually
    * indicates device hang up.
    */
   struct timeout_error : public std::runtime_error {
     timeout_error(bool write, unsigned int to);
+
   private:
     std::string generateString(bool write, unsigned int to);
   };
@@ -257,9 +271,9 @@ public:
    * 9600,19200,115200,230400,460800,921600.
    *
    * @note This command will attempt to communicate w/ the device using all
-   * possible baud rates. Once the current baud rate is determined, it will 
+   * possible baud rates. Once the current baud rate is determined, it will
    * switch to 'baud' and send the UART command.
-   * 
+   *
    * @throw std::runtime_error for invalid baud rates.
    */
   void selectBaudRate(unsigned int baud);
@@ -320,11 +334,11 @@ public:
    * @brief setFilterDataRate Set estimator data rate for different sources.
    * @param decimation Denominator in the update rate value: 500/x
    * @param sources Sources to apply this rate to. May be a bitwise combination
-   * of the values: Quaternion, GyroBias
+   * of the values: Quaternion, GyroBias, AngleUncertainty, BiasUncertainty
    *
    * @throw invalid_argument if an invalid source is requested.
    */
-  void setFilterDataRate(uint16_t decimation, const std::bitset<2> &sources);
+  void setFilterDataRate(uint16_t decimation, const std::bitset<4> &sources);
 
   /**
    * @brief enableMeasurements Set which measurements to enable in the filter
@@ -398,7 +412,7 @@ private:
   void sendCommand(const Packet &p);
 
   bool termiosBaudRate(unsigned int baud);
-  
+
   const std::string device_;
   int fd_;
   unsigned int rwTimeout_;
