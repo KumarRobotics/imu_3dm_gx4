@@ -56,11 +56,15 @@ extern "C" {
 //  3DM and FILTER commands
 #define COMMAND_GET_DEVICE_INFO       u8(0x03)
 #define COMMAND_GET_IMU_BASE_RATE     u8(0x06)
+#define COMMAND_GET_FILTER_BASE_RATE  u8(0x0B)
 #define COMMAND_IMU_MESSAGE_FORMAT    u8(0x08)
 #define COMAMND_FILTER_MESSAGE_FORMAT u8(0x0A)
 #define COMMAND_ENABLE_DATA_STREAM    u8(0x11)
 #define COMMAND_FILTER_CONTROL_FLAGS  u8(0x14)
 #define COMMAND_UART_BAUD_RATE        u8(0x40)
+#define COMMAND_SET_HARD_IRON         u8(0x3A)
+#define COMMAND_SET_SOFT_IRON         u8(0x3B)
+#define COMMAND_ENABLE_MEASUREMENTS   u8(0x41)
 #define COMMAND_DEVICE_STATUS         u8(0x64)
 
 //  supported fields
@@ -305,8 +309,8 @@ void Imu::Packet::calcChecksum() {
 #endif
 }
 
-Imu::Packet::Packet(uint8_t desc, uint8_t len)
-    : syncMSB(kSyncMSB), syncLSB(kSyncLSB), descriptor(desc), length(len),
+Imu::Packet::Packet(uint8_t desc)
+    : syncMSB(kSyncMSB), syncLSB(kSyncLSB), descriptor(desc), length(0),
       checksum(0) {
   memset(&payload, 0, sizeof(payload));
 }
@@ -506,11 +510,17 @@ void Imu::selectBaudRate(unsigned int baud) {
 
     //  send ping and wait for first response
     sendPacket(pp, 100);
+    try {
+      receiveResponse(pp, 500);
+    } catch (timeout_error&) {
+       continue;
+    } catch (command_error&) {
+      continue;
+    } //  do not catch io_error
 
-    if (receiveResponse(pp, 500) > 0) {
-      foundRate = true;
-      break;
-    }
+    //  no error in receiveResponse, this is correct baud rate
+    foundRate = true;
+    break;
   }
 
   if (!foundRate) {
@@ -529,60 +539,61 @@ void Imu::selectBaudRate(unsigned int baud) {
   }
   comm.calcChecksum();
 
-  int code = sendCommand(comm);
-  if (code <= 0) {
+  try {
+    sendCommand(comm);
+  } catch (std::exception& e) {
     std::stringstream ss;
-    ss << "Device rejected baud rate " << baud << " (Code: " << code << ")";
+    ss << "Device rejected baud rate " << baud << ".\n";
+    ss << e.what();
     throw std::runtime_error(ss.str());
   }
-
+  
   //  device has switched baud rate, now we should also
   if (!termiosBaudRate(baud)) {
     throw io_error(strerror(errno));
   }
 
   //  ping
-  if (ping() <= 0) {
-    throw std::runtime_error("Device did not respond to ping");
+  try {
+    ping();
+  } catch (std::exception& e) {
+    std::string err("Device did not respond to ping.\n");
+    err += e.what();
+    throw std::runtime_error(err);
   }
 }
 
-int Imu::ping() {
+void Imu::ping() {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_PING);
   encoder.endField();
-  //p.payload[0] = 0x02;
-  //p.payload[1] = 0x01;
   p.calcChecksum();
   assert(p.checkMSB == 0xE0 && p.checkLSB == 0xC6);
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::idle() {
+void Imu::idle() {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_IDLE);
   encoder.endField();
-  
-  //p.payload[0] = 0x02;
-  //p.payload[1] = 0x02;
   p.calcChecksum();
   assert(p.checkMSB == 0xE1 && p.checkLSB == 0xC7);
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::resume() {
+void Imu::resume() {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_RESUME);
   encoder.endField();
   p.calcChecksum();
   assert(p.checkMSB == 0xE5 && p.checkLSB == 0xCB);
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::getDeviceInfo(Imu::Info &info) {
+void Imu::getDeviceInfo(Imu::Info &info) {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_GET_DEVICE_INFO);
@@ -590,8 +601,8 @@ int Imu::getDeviceInfo(Imu::Info &info) {
   p.calcChecksum();
   assert(p.checkMSB == 0xE2 && p.checkLSB == 0xC8);
 
-  int comm = sendCommand(p);
-  if (comm > 0) {
+  sendCommand(p);
+  {
     PacketDecoder decoder(packet_);
     const bool advance = decoder.advanceTo(FIELD_DEVICE_INFO);
     assert(advance);
@@ -609,55 +620,37 @@ int Imu::getDeviceInfo(Imu::Info &info) {
     info.lotNumber = ltrim(std::string(buffer,16));
     decoder.extract(sizeof(buffer), &buffer[0]);
     info.deviceOptions = ltrim(std::string(buffer,16));
-    
-//    to_device_order<2>(&packet_.payload[6]); //  swap firmware ver.
-//    memcpy(&info.firmwareVersion, &packet_.payload[6], 2);
-
-//#define devinfo2str(buf, ofs) std::string((char *)(buf) + (ofs), 16)
-
-//    info.modelName = ltrim(devinfo2str(packet_.payload, 8));
-//    info.modelNumber = ltrim(devinfo2str(packet_.payload, 24));
-//    info.serialNumber = ltrim(devinfo2str(packet_.payload, 40));
-//    info.lotNumber = ltrim(devinfo2str(packet_.payload, 56));
-//    info.deviceOptions = ltrim(devinfo2str(packet_.payload, 72));
-
-//#undef devinfo2str
   }
-
-  return comm;
 }
 
-int Imu::getIMUDataBaseRate(uint16_t &baseRate) {
+void Imu::getIMUDataBaseRate(uint16_t &baseRate) {
   Packet p(COMMAND_CLASS_3DM);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_GET_IMU_BASE_RATE);
   encoder.endField();
   p.calcChecksum();
 
-  int comm = sendCommand(p);
-  if (comm > 0) {
+  sendCommand(p);
+  {
     PacketDecoder decoder(packet_);
     const bool advance = decoder.advanceTo(FIELD_IMU_BASERATE);
     assert(advance);
     decoder.extract(1, &baseRate);
   }
-  return comm;
 }
 
-int Imu::getFilterDataBaseRate(uint16_t &baseRate) {
-  Packet p(0x0C, 0x02);
-  p.payload[0] = 0x02;
-  p.payload[1] = 0x0B;
+void Imu::getFilterDataBaseRate(uint16_t &baseRate) {
+  Packet p(COMMAND_CLASS_3DM); //  was 0x02
+  PacketEncoder encoder(p);
+  encoder.beginField(COMMAND_GET_FILTER_BASE_RATE);
+  encoder.endField();
   p.calcChecksum();
 
-  int comm = sendCommand(p);
-  if (comm > 0) {
-    decode(&packet_.payload[6], 1, &baseRate);
-  }
-  return comm;
+  sendCommand(p);
+  decode(&packet_.payload[6], 1, &baseRate);
 }
 
-int Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
+void Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
   Packet p(COMMAND_CLASS_3DM);
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_DEVICE_STATUS);
@@ -665,17 +658,9 @@ int Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
   encoder.append(u8(0x02)); //  diagnostic mode
   encoder.endField();
   p.calcChecksum();
-  
-//  Packet p(0x0C, 0x05);
-//  p.payload[0] = 0x05;
-//  p.payload[1] = 0x64;
-//  encode(&p.payload[2],
-//         static_cast<uint16_t>(6234)); //  device model number (0x185A)
-//  p.payload[4] = 0x02;                 //  diagnostic mode
-//  p.calcChecksum();
 
-  int comm = sendCommand(p);
-  if (comm > 0) {
+  sendCommand(p);
+  {
     PacketDecoder decoder(packet_);
     const bool advance = decoder.advanceTo(FIELD_STATUS_REPORT);
     assert(advance);
@@ -685,39 +670,10 @@ int Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
     decoder.extract(4, &fields.statusFlags);
     decoder.extract(2, &fields.imuStreamEnabled);
     decoder.extract(13, &fields.imuPacketsDropped);
-    
-//    decode(&packet_.payload[6], 1, &fields.modelNumber);
-//    decode(&packet_.payload[8], 1, &fields.selector);
-//    decode(&packet_.payload[9], 4, &fields.statusFlags);
-//    decode(&packet_.payload[25], 2, &fields.imuStreamEnabled);
-//    decode(&packet_.payload[27], 13, &fields.imuPacketsDropped);
   }
-  return comm;
 }
 
-//template <typename T> int getNextBit(T &val) {
-//  const static int nBits = sizeof(T) * 8;
-//  static_assert(!std::numeric_limits<T>::is_signed &&
-//                    std::numeric_limits<T>::is_integer,
-//                "Type must be a unsigned integer");
-
-//  int count = 0;
-//  T n = val;
-
-//  while (!(n & 0x01) && count != nBits) {
-//    n = n >> 1;
-//    count++;
-//  }
-
-//  if (count < nBits) {
-//    val = val & ~(1 << count);
-//    return count;
-//  }
-
-//  return -1;
-//}
-
-int Imu::setIMUDataRate(uint16_t decimation, 
+void Imu::setIMUDataRate(uint16_t decimation, 
                         const std::bitset<4>& sources) {
   Imu::Packet p(COMMAND_CLASS_3DM);  //  was 0x04
   PacketEncoder encoder(p);
@@ -735,17 +691,6 @@ int Imu::setIMUDataRate(uint16_t decimation,
       fields.push_back(fieldDescs[i]);
     }
   }
-
-//  int bPos;
-//  auto backup = sources;
-//  while ((bPos = getNextBit(sources)) >= 0) {
-//    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
-//      throw invalid_argument("Invalid data source requested: " + 
-//                             std::to_string(1 << bPos));
-//    }
-//    fields.push_back(fieldDescs[bPos]);
-//  }
-  
   encoder.beginField(COMMAND_IMU_MESSAGE_FORMAT);
   encoder.append(FUNCTION_APPLY, u8(fields.size()));
   
@@ -755,42 +700,10 @@ int Imu::setIMUDataRate(uint16_t decimation,
   
   encoder.endField();
   p.calcChecksum();
-  
- /* auto sum = p.checksum;
-  
-  p.length = 4;
-  p.payload[0] = 0x00; //  field length
-  p.payload[1] = 0x08;
-  p.payload[2] = 0x01; //  function
-  p.payload[3] = 0x00; //  descriptor count
-
-  //  order of fields:
-  //  Accelerometer   bit 0
-  //  Gyroscope       bit 1
-  //  Magnetometer    bit 2
-  //  Barometer       bit 3
-
-  uint8_t descCount;
-  sources = backup;
-  while ((bPos = getNextBit(sources)) >= 0) {
-    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
-      throw invalid_argument("Invalid data source requested!");
-    }
-
-    descCount++;
-    p.length += encode(p.payload + p.length, fieldDescs[bPos], decimation);
-  }
-
-  p.payload[3] = descCount;
-  p.payload[0] = 4 + 3 * descCount;
-
-  p.calcChecksum();
-  p.print();
-  assert(p.checksum == sum);*/
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::setFilterDataRate(uint16_t decimation, const std::bitset<2>& sources) {
+void Imu::setFilterDataRate(uint16_t decimation, const std::bitset<2>& sources) {
   Imu::Packet p(COMMAND_CLASS_3DM);  //  was 0x04
   PacketEncoder encoder(p);
  
@@ -813,70 +726,27 @@ int Imu::setFilterDataRate(uint16_t decimation, const std::bitset<2>& sources) {
   }
   encoder.endField();
   p.calcChecksum();
-  
-//  int bPos;
-//  while ((bPos = getNextBit(sources)) >= 0) {
-//    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
-//      throw invalid_argument("Invalid data source requested: " + 
-//                             std::to_string(1 << bPos));
-//    }
-//    fields.push_back(fieldDescs[bPos]);
-//  }
-  
-//  encoder.beginField(FILTER_MESSAGE_FORMAT);
-//  encoder.append(APPLY_NEW_SETTINGS, u8(fields.size()));
-  
-//  for (const uint8_t& field : fields) {
-//    encoder.append(field, decimation);
-//  }
-//  encoder.endField();
-  
-//  p.calcChecksum();
-  
-//  p.payload[0] = 0x00; //  field length
-//  p.payload[1] = 0x0A;
-//  p.payload[2] = 0x01; //  function
-//  p.payload[3] = 0x00; //  descriptor count
-
-//  static const uint8_t fieldDescs[] = { 0x03, 0x06 };
-//  uint8_t descCount = 0;
-
-//  int bPos;
-//  while ((bPos = getNextBit(sources)) >= 0) {
-//    if (bPos >= static_cast<int>(sizeof(fieldDescs))) {
-//      throw invalid_argument("Invalid data source requested!");
-//    }
-
-//    descCount++;
-//    p.length += encode(p.payload + p.length, fieldDescs[bPos], decimation);
-//  }
-
-//  p.payload[3] = descCount;
-//  p.payload[0] = 4 + 3 * descCount;
-
-//  p.calcChecksum();
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::enableMeasurements(bool accel, bool magnetometer) {
-  Imu::Packet p(0x0D, 0x05);
-  p.payload[0] = 0x05;
-  p.payload[1] = 0x41;
-  p.payload[2] = 0x01; //  apply new settings
-
-  p.payload[3] = 0;
+void Imu::enableMeasurements(bool accel, bool magnetometer) {
+  Imu::Packet p(COMMAND_CLASS_FILTER);
+  PacketEncoder encoder(p);
+  encoder.beginField(COMMAND_ENABLE_MEASUREMENTS);
+  uint16_t flag=0;
   if (accel) {
-    p.payload[3] |= 0x01;
+    flag |= 0x01;
   }
   if (magnetometer) {
-    p.payload[3] |= 0x02;
+    flag |= 0x02;
   }
-
+  encoder.append(FUNCTION_APPLY, flag);
+  encoder.endField();
   p.calcChecksum();
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::enableBiasEstimation(bool enabled) {
+void Imu::enableBiasEstimation(bool enabled) {
   Imu::Packet p(COMMAND_CLASS_FILTER);
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_FILTER_CONTROL_FLAGS);
@@ -887,35 +757,35 @@ int Imu::enableBiasEstimation(bool enabled) {
   encoder.append(FUNCTION_APPLY, flag);
   encoder.endField();
   p.calcChecksum();
-  
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::setHardIronOffset(float offset[3]) {
-  Imu::Packet p(0x0C, 0x0F);
-  p.payload[0] = 0x0F;
-  p.payload[1] = 0x3A;
-  p.payload[2] = 0x01; //  apply settings
-
-  encode(&p.payload[3], offset[0], offset[1], offset[2]);
+void Imu::setHardIronOffset(float offset[3]) {
+  Imu::Packet p(COMMAND_CLASS_3DM);
+  PacketEncoder encoder(p);
+  encoder.beginField(COMMAND_SET_HARD_IRON);
+  encoder.append(FUNCTION_APPLY, offset[0], offset[1], offset[2]);
+  encoder.endField();
+  assert(p.length == 0x0F);
   p.calcChecksum();
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::setSoftIronMatrix(float matrix[9]) {
-  Imu::Packet p(0x0C, 0x27);
-  p.payload[0] = 0x27;
-  p.payload[1] = 0x3B;
-  p.payload[2] = 0x01; //  apply settings
-
-  encode(&p.payload[3], matrix[0], matrix[1], matrix[2], matrix[3], matrix[4],
-         matrix[5], matrix[6], matrix[7], matrix[8]);
-
+void Imu::setSoftIronMatrix(float matrix[9]) {
+  Imu::Packet p(COMMAND_CLASS_3DM);
+  PacketEncoder encoder(p);
+  encoder.beginField(COMMAND_SET_SOFT_IRON);
+  encoder.append(FUNCTION_APPLY);
+  for (int i=0; i < 9; i++) {
+    encoder.append(matrix[i]);
+  }
+  encoder.endField();
+  assert(p.length == 0x27);
   p.calcChecksum();
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::enableIMUStream(bool enabled) {
+void Imu::enableIMUStream(bool enabled) {
   Packet p(COMMAND_CLASS_3DM);
   PacketEncoder encoder(p);  
   encoder.beginField(COMMAND_ENABLE_DATA_STREAM);
@@ -924,10 +794,10 @@ int Imu::enableIMUStream(bool enabled) {
   encoder.endField();
   p.calcChecksum();
   assert(p.checkMSB == 0x04 && p.checkLSB == 0x1A);
-  return sendCommand(p);
+  sendCommand(p);
 }
 
-int Imu::enableFilterStream(bool enabled) {
+void Imu::enableFilterStream(bool enabled) {
   Packet p(COMMAND_CLASS_3DM);
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_ENABLE_DATA_STREAM);
@@ -936,7 +806,7 @@ int Imu::enableFilterStream(bool enabled) {
   encoder.endField();
   p.calcChecksum();
   assert(p.checkMSB == 0x06 && p.checkLSB == 0x1E);
-  return sendCommand(p);
+  sendCommand(p);
 }
 
 void

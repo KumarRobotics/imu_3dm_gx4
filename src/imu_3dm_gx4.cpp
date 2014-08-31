@@ -130,91 +130,80 @@ int main(int argc, char **argv) {
 
     Imu::Info info;
     ROS_INFO("Fetching device info.");
-    if (imu.getDeviceInfo(info)) {
-      ROS_INFO("Retrieved device info:");
-      ROS_INFO("\tFirmware version: %u", info.firmwareVersion);
-      ROS_INFO("\tModel name: %s", info.modelName.c_str());
-      ROS_INFO("\tModel number: %s", info.modelNumber.c_str());
-      ROS_INFO("\tSerial number: %s", info.serialNumber.c_str());
-      ROS_INFO("\tDevice options: %s", info.deviceOptions.c_str());
-    }
-
-#define assert_throw(command)                                                  \
-  if ((command) <= 0) {                                                        \
-    throw std::runtime_error("Failed last command");                           \
-  }
+    imu.getDeviceInfo(info);
+    ROS_INFO("Retrieved device info:");
+    ROS_INFO("\tFirmware version: %u", info.firmwareVersion);
+    ROS_INFO("\tModel name: %s", info.modelName.c_str());
+    ROS_INFO("\tModel number: %s", info.modelNumber.c_str());
+    ROS_INFO("\tSerial number: %s", info.serialNumber.c_str());
+    ROS_INFO("\tDevice options: %s", info.deviceOptions.c_str());
 
     ROS_INFO("Idling the device");
-    assert_throw(imu.idle());
+    imu.idle();
 
     //  read back data rates
     uint16_t baseRate;
-    if (imu.getIMUDataBaseRate(baseRate) > 0) {
-      ROS_INFO("IMU data base rate: %u Hz", baseRate);
-    }
-    if (imu.getFilterDataBaseRate(baseRate) > 0) {
-      ROS_INFO("Filter data base rate: %u Hz", baseRate);
-    }
+    imu.getIMUDataBaseRate(baseRate);
+    ROS_INFO("IMU data base rate: %u Hz", baseRate);
+    imu.getFilterDataBaseRate(baseRate);
+    ROS_INFO("Filter data base rate: %u Hz", baseRate);
+    
     Imu::DiagnosticFields fields;
-    if (imu.getDiagnosticInfo(fields) > 0) {
-      ROS_INFO("Diagnostic fields:");
-      ROS_INFO("\tModel number: %u", fields.modelNumber);
-      ROS_INFO("\tSelector flags: %u", fields.selector);
-      ROS_INFO("\tStatus flags: %u", fields.statusFlags);
-      ROS_INFO("\tSystem timer (ms): %u", fields.systemTimer);
-      ROS_INFO("\tNumber of 1PPS pulses since boot: %u", fields.num1PPSPulses);
-      ROS_INFO("\tLast 1PPS pulse (ms): %u", fields.last1PPSPulse);
-      ROS_INFO("\tIMU stream enabled: %u", fields.imuStreamEnabled);
-      ROS_INFO("\tFilter stream enabled: %u", fields.filterStreamEnabled);
-      ROS_INFO("\tIMU packets dropped: %u", fields.imuPacketsDropped);
-      ROS_INFO("\tFilter packets dropped: %u", fields.filterPacketsDropped);
-      ROS_INFO("\tCOM bytes written: %u", fields.comBytesWritten);
-      ROS_INFO("\tCOM bytes read: %u", fields.comBytesRead);
-      ROS_INFO("\tCOM number of write overruns: %u",
-               fields.comNumWriteOverruns);
-      ROS_INFO("\tCOM number of read overruns: %u", fields.comNumReadOverruns);
-      ROS_INFO("\tUSB bytes written: %u", fields.usbBytesWritten);
-      ROS_INFO("\tUSB bytes read: %u", fields.usbBytesRead);
-      ROS_INFO("\tUSB number of write overruns: %u",
-               fields.usbNumWriteOverruns);
-      ROS_INFO("\tUSB number of read overruns: %u", fields.usbNumReadOverruns);
-      ROS_INFO("\tNumber of IMU parse errors: %u", fields.numIMUParseErrors);
-      ROS_INFO("\tNumber of IMU messages: %u", fields.totalIMUMessages);
-      ROS_INFO("\tLast IMU message (ms): %u", fields.lastIMUMessage);
-    }
+    imu.getDiagnosticInfo(fields);
+    ROS_INFO("Diagnostic fields:");
+    ROS_INFO("\tModel number: %u", fields.modelNumber);
+    ROS_INFO("\tSelector flags: %u", fields.selector);
+    ROS_INFO("\tStatus flags: %u", fields.statusFlags);
+    ROS_INFO("\tSystem timer (ms): %u", fields.systemTimer);
+    ROS_INFO("\tNumber of 1PPS pulses since boot: %u", fields.num1PPSPulses);
+    ROS_INFO("\tLast 1PPS pulse (ms): %u", fields.last1PPSPulse);
+    ROS_INFO("\tIMU stream enabled: %u", fields.imuStreamEnabled);
+    ROS_INFO("\tFilter stream enabled: %u", fields.filterStreamEnabled);
+    ROS_INFO("\tIMU packets dropped: %u", fields.imuPacketsDropped);
+    ROS_INFO("\tFilter packets dropped: %u", fields.filterPacketsDropped);
+    ROS_INFO("\tCOM bytes written: %u", fields.comBytesWritten);
+    ROS_INFO("\tCOM bytes read: %u", fields.comBytesRead);
+    ROS_INFO("\tCOM number of write overruns: %u",
+             fields.comNumWriteOverruns);
+    ROS_INFO("\tCOM number of read overruns: %u", fields.comNumReadOverruns);
+    ROS_INFO("\tUSB bytes written: %u", fields.usbBytesWritten);
+    ROS_INFO("\tUSB bytes read: %u", fields.usbBytesRead);
+    ROS_INFO("\tUSB number of write overruns: %u",
+             fields.usbNumWriteOverruns);
+    ROS_INFO("\tUSB number of read overruns: %u", fields.usbNumReadOverruns);
+    ROS_INFO("\tNumber of IMU parse errors: %u", fields.numIMUParseErrors);
+    ROS_INFO("\tNumber of IMU messages: %u", fields.totalIMUMessages);
+    ROS_INFO("\tLast IMU message (ms): %u", fields.lastIMUMessage);
 
     ROS_INFO("Selecting IMU decimation rate: %u", imu_decimation);
-    assert_throw(imu.setIMUDataRate(
+    imu.setIMUDataRate(
         imu_decimation, Imu::IMUData::Accelerometer | Imu::IMUData::Gyroscope |
                             Imu::IMUData::Magnetometer |
-                            Imu::IMUData::Barometer));
+                            Imu::IMUData::Barometer);
 
     ROS_INFO("Selecting filter decimation rate: %u", filter_decimation);
-    assert_throw(
-        imu.setFilterDataRate(filter_decimation, Imu::FilterData::Quaternion |
-                                                 Imu::FilterData::Bias));
+    imu.setFilterDataRate(filter_decimation, Imu::FilterData::Quaternion |
+                                                 Imu::FilterData::Bias);
 
     ROS_INFO("Enabling IMU data stream");
-    assert_throw(imu.enableIMUStream(true));
+    imu.enableIMUStream(true);
 
     if (enable_filter) {
       ROS_INFO("Enabling filter data stream");
-      assert_throw(imu.enableFilterStream(true));
+      imu.enableFilterStream(true);
 
       ROS_INFO("Enabling filter measurements");
-      assert_throw(imu.enableMeasurements(true, enable_mag_update));
+      imu.enableMeasurements(true, enable_mag_update);
 
       ROS_INFO("Enabling gyro bias estimation");
-      assert_throw(imu.enableBiasEstimation(true));
+      imu.enableBiasEstimation(true);
     } else {
       ROS_INFO("Disabling filter data stream");
-      assert_throw(imu.enableFilterStream(false));
+      imu.enableFilterStream(false);
     }
 
     ROS_INFO("Resuming the device");
-    assert_throw(imu.resume());
-
-#undef assert_throw
+    imu.resume();
 
     imu.setIMUDataCallback(publish_data);
     imu.setFilterDataCallback(publish_filter);

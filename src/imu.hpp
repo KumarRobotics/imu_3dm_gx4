@@ -31,6 +31,11 @@ namespace imu_3dm_gx4 {
  * @brief Imu Interface to the Microstrain 3DM-GX4-25 IMU
  * @see http://www.microstrain.com/inertial/3dm-gx4-25
  * @author Gareth Cross
+ * 
+ * @note Error handling: All methods which communicate with the device
+ * can throw the exceptions below: io_error, timeout_error, command_error and
+ * std::runtime_error. Additional exceptions are indicated on specific
+ * functions.
  */
 class Imu {
 public:
@@ -89,7 +94,7 @@ public:
      * @param desc Major descriptor of this command.
      * @param len Length of the packet payload.
      */
-    Packet(uint8_t desc = 0, uint8_t len = 0);
+    Packet(uint8_t desc = 0);
     
     /**
      * @brief Make a 'human-readable' version of the packet.
@@ -242,68 +247,52 @@ public:
    * @note This command will attempt to communicate w/ the device using all
    * possible baud rates. Once the current baud rate is determined, it will 
    * switch to 'baud' and send the UART command.
-   * @throws runtime_error, io_error, timeout_error
+   * 
+   * @throw std::runtime_error for invalid baud rates.
    */
   void selectBaudRate(unsigned int baud);
 
   /**
    * @brief ping Ping the device.
    * @param to Timeout in milliseconds.
-   *
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int ping();
+  void ping();
 
   /**
    * @brief idle Switch the device to idle mode.
    * @param to Timeout in milliseconds.
-   *
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int idle();
+  void idle();
 
   /**
    * @brief resume Resume the device.
    * @param to Timeout in milliseconds.
-   *
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int resume();
+  void resume();
 
   /**
    * @brief getDeviceInfo Get hardware information about the device.
    * @param info Struct into which information is placed.
-   *
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int getDeviceInfo(Imu::Info &info);
+  void getDeviceInfo(Imu::Info &info);
 
   /**
    * @brief getIMUDataBaseRate Get the imu data base rate (should be 1000)
    * @param baseRate On success, the base rate in Hz
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int getIMUDataBaseRate(uint16_t &baseRate);
+  void getIMUDataBaseRate(uint16_t &baseRate);
 
   /**
    * @brief getFilterDataBaseRate Get the filter data base rate (should be 500)
    * @param baseRate On success, the base rate in Hz
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int getFilterDataBaseRate(uint16_t &baseRate);
+  void getFilterDataBaseRate(uint16_t &baseRate);
 
   /**
-   * @brief getDiagnosticInfo
-   * @param fields
-   * @return
+   * @brief getDiagnosticInfo Get diagnostic information from the IMU.
+   * @param fields On success, a filled out DiagnosticFields.
    */
-  int getDiagnosticInfo(Imu::DiagnosticFields &fields);
+  void getDiagnosticInfo(Imu::DiagnosticFields &fields);
 
   /**
    * @brief setIMUDataRate Set imu data rate for different sources.
@@ -312,10 +301,8 @@ public:
    * of the values: Accelerometer, Gyroscope, Magnetometer, Barometer
    *
    * @throw invalid_argument if an invalid source is requested.
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int setIMUDataRate(uint16_t decimation, const std::bitset<4> &sources);
+  void setIMUDataRate(uint16_t decimation, const std::bitset<4> &sources);
 
   /**
    * @brief setFilterDataRate Set estimator data rate for different sources.
@@ -324,63 +311,47 @@ public:
    * of the values: Quaternion, GyroBias
    *
    * @throw invalid_argument if an invalid source is requested.
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int setFilterDataRate(uint16_t decimation, const std::bitset<2> &sources);
+  void setFilterDataRate(uint16_t decimation, const std::bitset<2> &sources);
 
   /**
    * @brief enableMeasurements Set which measurements to enable in the filter
    * @param accel If true, acceleration measurements are enabled
-   * @param magnetometer If true, magnetometer measurements are enabled
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
+   * @param magnetometer If true, magnetometer measurements are enabled.
    */
-  int enableMeasurements(bool accel, bool magnetometer);
+  void enableMeasurements(bool accel, bool magnetometer);
 
   /**
    * @brief enableBiasEstimation Enable gyroscope bias estimation
    * @param enabled If true, bias estimation is enabled
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int enableBiasEstimation(bool enabled);
+  void enableBiasEstimation(bool enabled);
 
   /**
    * @brief setHardIronOffset Set the hard-iron bias vector for the
    * magnetometer.
    * @param offset 3x1 vector, units of gauss.
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int setHardIronOffset(float offset[3]);
+  void setHardIronOffset(float offset[3]);
 
   /**
    * @brief setSoftIronMatrix Set the soft-iron matrix for the magnetometer.
    * @param matrix 3x3 row-major matrix, default should be identity.
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int setSoftIronMatrix(float matrix[9]);
+  void setSoftIronMatrix(float matrix[9]);
 
   /**
    * @brief enableIMUStream Enable/disable streaming of IMU data
    * @param enabled If true, streaming is enabled.
-   *
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int enableIMUStream(bool enabled);
+  void enableIMUStream(bool enabled);
 
   /**
    * @brief enableFilterStream Enable/disable streaming of estimation filter
    * data.
    * @param enabled If true, streaming is enabled.
-   *
-   * @return 0 on timeout, negative value if NACK is received, positive on
-   * success.
    */
-  int enableFilterStream(bool enabled);
+  void enableFilterStream(bool enabled);
 
   /**
    * @brief Set the IMU data callback.
@@ -410,9 +381,9 @@ private:
 
   void sendPacket(const Packet &p, unsigned int to);
 
-  int receiveResponse(const Packet &command, unsigned int to);
+  void receiveResponse(const Packet &command, unsigned int to);
 
-  int sendCommand(const Packet &p);
+  void sendCommand(const Packet &p);
 
   bool termiosBaudRate(unsigned int baud);
   
