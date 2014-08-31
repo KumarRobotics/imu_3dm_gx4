@@ -20,6 +20,7 @@ ros::Publisher pubIMU;
 ros::Publisher pubMag;
 ros::Publisher pubPressure;
 ros::Publisher pubFilter;
+std::string frameId;
 
 Imu::Info info;
 Imu::DiagnosticFields fields;
@@ -43,8 +44,11 @@ void publish_data(const Imu::IMUData &data) {
   
   //  timestamp identically
   imu.header.stamp = ros::Time::now();
+  imu.header.frame_id = frameId;
   field.header.stamp = imu.header.stamp;
+  field.header.frame_id = frameId;
   pressure.header.stamp = imu.header.stamp;
+  pressure.header.frame_id = frameId;
 
   imu.orientation_covariance[0] =
       -1; //  orientation data is on a separate topic
@@ -79,6 +83,7 @@ void publish_filter(const Imu::FilterData &data) {
   
   imu_3dm_gx4::FilterOutput output;
   output.header.stamp = ros::Time::now();
+  output.header.frame_id = frameId;
   output.orientation.w = data.quaternion[0];
   output.orientation.x = data.quaternion[1];
   output.orientation.y = data.quaternion[2];
@@ -91,9 +96,12 @@ void publish_filter(const Imu::FilterData &data) {
   output.bias_covariance[4] = data.biasUncertainty[1]*data.biasUncertainty[1];
   output.bias_covariance[8] = data.biasUncertainty[2]*data.biasUncertainty[2];
   
-  output.orientation_covariance[0] = data.angleUncertainty[0]*data.angleUncertainty[0];
-  output.orientation_covariance[4] = data.angleUncertainty[1]*data.angleUncertainty[1];
-  output.orientation_covariance[8] = data.angleUncertainty[2]*data.angleUncertainty[2];
+  output.orientation_covariance[0] = data.angleUncertainty[0]*
+      data.angleUncertainty[0];
+  output.orientation_covariance[4] = data.angleUncertainty[1]*
+      data.angleUncertainty[1];
+  output.orientation_covariance[8] = data.angleUncertainty[2]*
+      data.angleUncertainty[2];
   
   output.quat_status = data.quaternionStatus;
   output.bias_status = data.biasStatus;
@@ -157,6 +165,7 @@ int main(int argc, char **argv) {
   //  load parameters from launch file
   nh.param<std::string>("device", device, "/dev/ttyACM0");
   nh.param<int>("baudrate", baudrate, 115200);
+  nh.param<std::string>("frameId", frameId, std::string("imu"));
   nh.param<int>("imu_decimation", imu_decimation, 10);
   nh.param<int>("filter_decimation", filter_decimation, 5);
   nh.param<bool>("enable_filter", enable_filter, false);

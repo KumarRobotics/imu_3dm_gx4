@@ -2,10 +2,12 @@
 std_msgs/Header header
 
 # Node on status flags:
+# Status flags are implemented as bit-fields.
 #  0 = invalid
 #  1 = valid
 #  2 = valid and geo-magnetically referenced (quat_status only)
-# Covariance on orientation becomes invalid as pitch angle exceeds 70 degrees.
+#
+# Note that covariance on orientation becomes invalid as pitch angle exceeds 70 # degrees. This will be indicated by the status flag.
 
 # Quaternion status:
 uint16 quat_status

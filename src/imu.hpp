@@ -189,12 +189,10 @@ public:
     unsigned int fields; /**< Which fields are present in the struct. */
 
     float quaternion[4]; /**< Orientation quaternion (q0,q1,q2,q3) */
-    uint16_t
-    quaternionStatus; /**< Quaternion status: 0 = invalid, 1 = valid, 2 =
-                   georeferenced to magnetic north */
+    uint16_t quaternionStatus; /**< Quaternion status */
 
     float bias[3];       /**< Gyro bias */
-    uint16_t biasStatus; /**< Bias status: 0 = invalid, 1 = valid */
+    uint16_t biasStatus; /**< Bias status 0 = invalid, 1 = valid */
 
     float angleUncertainty[3];       /**< 1-sigma angle uncertainty */
     uint16_t angleUncertaintyStatus; /**< 0 = invalid, 1 = valid */

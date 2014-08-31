@@ -12,6 +12,7 @@ This package works on Ubuntu 14.04 (ROS _indigo_) or later.
   - Units of acceleration are now m/s^2, in agreement with ROS convention.
   - Cleaned up code base, replaced error codes with exceptions.
   - Status can now be viewed from `rqt_runtime_monitor`.
+  - Filter output is now in a single, custom message with covariances and important status flags.
   - Added option to enable/disable accelerometer update in the estimator.
   - Removed TF broadcast option.
   - Reformatted code base to clang-llvm convention.
@@ -23,6 +24,7 @@ This package works on Ubuntu 14.04 (ROS _indigo_) or later.
 The `imu_3dm_gx4` node supports the following base options:
 * `device`: Path to the device in `/dev`. Defaults to `/dev/ttyACM0`.
 * `baudrate`: Baudrate to employ with serial communication. Defaults to `115200`.
+* `frame_id`: Frame to use in headers.
 * `imu_decimation`: IMU decimation rate to use. Determines the IMU data rate according to: `hz = 1000 / decimation`. Default is 10.
 
 The following additional options are present for leveraging the 3DM's onboard estimation filter:
@@ -48,9 +50,11 @@ All of the above topics are published with synchronized timestamps.
 
 Additional topics will be published if `enable_filter` is true:
 
-* `/imu_3dm_gx4/orientation`: An instance of `geometry_msgs/StampedQuaternion`. Orientation of the device.
-* `/imu_3dm_gx4/bias`: An instance of `geometry_msgs/StampedVector3` Current estimate of gyroscope biases.
-* `/imu_3dm_gx4/filterStatus`: A custom message providing the status of the IMU filter. See `FilterStatus.msg` for details.
+* `/imu_3dm_gx4/filter`: An instance of `imu_3dm_gx4/FilterOuput`. Custom message indicating all the onboard filter outputs.
+
+## Known Issues
+
+* Even when the `enable_mag_update` option is set to false (and the device acknowledges the setting with a positive ACK), the `quat_status` field is received as 3. This has not been fully debugged yet.
 
 ## FAQs
 

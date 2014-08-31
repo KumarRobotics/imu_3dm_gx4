@@ -8,6 +8,9 @@
     <!-- Path to device in /dev -->
     <arg name="device" default="/dev/ttyACM0" />
 
+    <!-- Frame ID for messages -->
+    <arg name="frame_id" default="imu"/>
+
     <!-- Decimation value x, where freq = 1000 / x -->
     <arg name="imu_decimation" default="10"/>
     <arg name="filter_decimation" default="5"/>
@@ -16,16 +19,17 @@
     <arg name="enable_filter" value="true"/>
 
     <!-- Enable/Disable filter updates -->
-    <arg name="enable_accel_update" value="true"/>
+    <arg name="enable_accel_update" value="false"/>
     <arg name="enable_mag_update" value="false"/>
 
     <node pkg="imu_3dm_gx4" name="$(arg imu_node)" type="imu_3dm_gx4" output="screen">
         <param name="device" type="string" value="$(arg device)" />
         <param name="baudrate" type="int" value="$(arg baudrate)" />
+        <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_decimation" type="int" value="$(arg imu_decimation)" />
         <param name="filter_decimation" type="int" value="$(arg filter_decimation)"/>
         <param name="enable_filter" type="bool" value="$(arg enable_filter)"/>
         <param name="enable_accel_update" type="bool" value="$(arg enable_accel_update)"/>
-        <param name="enable_mag_upadte" type="bool" value="$(arg enable_mag_update)"/>
+        <param name="enable_mag_update" type="bool" value="$(arg enable_mag_update)"/>
     </node>
 </launch>
