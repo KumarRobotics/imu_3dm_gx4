@@ -13,8 +13,10 @@
 #include <chrono>
 #include <locale>
 #include <tuple>
-
-#include <ros/ros.h>
+#include <algorithm>
+#include <iostream>
+#include <string>
+#include <sstream>
 
 extern "C" {
 #include <fcntl.h>
@@ -24,16 +26,22 @@ extern "C" {
 #include <errno.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <assert.h>
+#include <unistd.h> //  close
+#include <string.h> //  strerror
 }
 
-#define kTimeout (100)
-#define kBufferSize (10) //  for full performance this must be kept SMALL!
+#define kDefaultTimeout    (300)
+#define kBufferSize        (10) //  keep this small, or 1000Hz is not attainable
 
 #define u8(x) static_cast<uint8_t>((x))
 
 #define COMMAND_CLASS_BASE    u8(0x01)
 #define COMMAND_CLASS_3DM     u8(0x0C)
 #define COMMAND_CLASS_FILTER  u8(0x0D)
+
+#define DATA_CLASS_IMU        u8(0x80)
+#define DATA_CLASS_FILTER     u8(0x82)
 
 #define FUNCTION_APPLY        u8(0x01)
 
@@ -52,6 +60,7 @@ extern "C" {
 #define COMAMND_FILTER_MESSAGE_FORMAT u8(0x0A)
 #define COMMAND_ENABLE_DATA_STREAM    u8(0x11)
 #define COMMAND_FILTER_CONTROL_FLAGS  u8(0x14)
+#define COMMAND_UART_BAUD_RATE        u8(0x40)
 #define COMMAND_DEVICE_STATUS         u8(0x64)
 
 //  supported fields
@@ -65,9 +74,9 @@ extern "C" {
 #define FIELD_IMU_BASERATE    u8(0x83)
 #define FIELD_FILTER_BASERATE u8(0x8A)
 #define FIELD_STATUS_REPORT   u8(0x90)
+#define FIELD_ACK_OR_NACK     u8(0xF1)
 
 using namespace imu_3dm_gx4;
-using namespace std;
 
 // trim from start
 static inline std::string ltrim(std::string s) {
@@ -182,18 +191,31 @@ private:
  */
 class PacketDecoder {
 public:
-  PacketDecoder(Imu::Packet& p) : p_(p), fs_(0), pos_(2) {
+  PacketDecoder(const Imu::Packet& p) : p_(p), fs_(0), pos_(2) {
     assert(p.length > 0);
   }
   
   int fieldDescriptor() const {
-    if (fs_ >= sizeof(p_.payload)) { 
+    if (fs_ > sizeof(p_.payload)-2) { 
       return -1; 
     }
     if (p_.payload[fs_] == 0) { 
       return -1;  //  no field 
     }
     return p_.payload[fs_ + 1]; //  descriptor after length
+  }
+  
+  int fieldLength() const {
+    assert(fs_ < sizeof(p_.payload));
+    return p_.payload[fs_];
+  }
+  
+  bool fieldIsAckOrNack() const {
+    const int desc = fieldDescriptor();
+    if (desc == static_cast<int>(FIELD_ACK_OR_NACK)) {
+      return true;
+    }
+    return false;
   }
   
   bool advanceTo(uint8_t field) {
@@ -224,34 +246,45 @@ private:
   uint8_t pos_;
 };
 
-bool Imu::Packet::is_ack() const {
-  //  length must be 4 for the first field in an ACK
-  return (payload[0] == 0x04 && payload[1] == 0xF1);
+bool Imu::Packet::isIMUData() const { 
+  return descriptor == DATA_CLASS_IMU;
 }
 
-bool Imu::Packet::is_imu_data() const { return descriptor == 0x80; }
+bool Imu::Packet::isFilterData() const { 
+  return descriptor == DATA_CLASS_FILTER; 
+}
 
-bool Imu::Packet::is_filter_data() const { return descriptor == 0x82; }
-
-int Imu::Packet::ack_code(const Packet &command) const {
-
-  if (!is_ack()) {
+int Imu::Packet::ackErrorCodeFor(const Packet &command) const {
+  PacketDecoder decoder(*this);
+  const uint8_t sentDesc = command.descriptor;
+  const uint8_t sentField = command.payload[1];
+  
+  if (sentDesc != this->descriptor) {
+    //  not for this packet
     return -1;
-  } else if (descriptor != command.descriptor) {
-    return -1; //  does not correspond to this command
-  } else if (payload[2] != command.payload[1]) {
-    return -1; //  first entry in field must match the sent field desc
   }
-
-  //  ack, return error code
-  return payload[3];
+  
+  //  look for a matching ACK
+  for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
+    if (decoder.fieldIsAckOrNack()) {
+      uint8_t cmd, code;
+      decoder.extract(1, &cmd);
+      decoder.extract(1, &code);
+      if (cmd == sentField) {
+        //  match
+        return code;
+      }
+    }
+  }
+  //  not an ACK/NACK
+  return -1;
 }
 
 void Imu::Packet::calcChecksum() {
   uint8_t byte1 = 0, byte2 = 0;
 
-#define add_byte(x)                                                            \
-  byte1 += (x);                                                                \
+#define add_byte(x)  \
+  byte1 += (x);      \
   byte2 += byte1;
 
   add_byte(syncMSB);
@@ -276,7 +309,23 @@ Imu::Packet::Packet(uint8_t desc, uint8_t len)
     : syncMSB(kSyncMSB), syncLSB(kSyncLSB), descriptor(desc), length(len),
       checksum(0) {}
 
-Imu::Imu(const std::string &device) : device_(device), fd_(0), state_(Idle) {
+std::string Imu::Packet::toString() const {
+  std::stringstream ss;
+  ss << std::hex;
+  ss << "Sync: " << sync << "\n";
+  ss << "Descriptor: " << descriptor << "\n";
+  ss << "Length: " << length << "\n";
+  ss << "Payload: ";
+  for (size_t s=0; s < length; s++) {
+    ss << payload[s] << " ";
+  }
+  ss << "\nCheck MSB: " << checkMSB << "\n";
+  ss << "Check LSB: " << checkLSB;
+  return ss.str();
+}
+
+Imu::Imu(const std::string &device) : device_(device), fd_(0), 
+  rwTimeout_(kDefaultTimeout), state_(Idle) {
   //  buffer for storing reads
   buffer_.resize(kBufferSize);
 }
@@ -345,8 +394,7 @@ void Imu::connect() {
 void Imu::disconnect() {
   if (fd_ > 0) {
     //  send the idle command first
-    idle(kTimeout);
-
+    idle();
     close(fd_);
   }
   fd_ = 0;
@@ -412,13 +460,17 @@ void Imu::selectBaudRate(unsigned int baud) {
 
   if (!std::binary_search(rates, rates + num_rates, baud)) {
     //  invalid baud rate
-    throw std::invalid_argument(string("Baud rate unsupported ") +
-                                to_string(baud));
+    std::stringstream ss;
+    ss << "Baud rate unsupported: " << baud;
+    throw std::invalid_argument(ss.str());
   }
 
-  Imu::Packet pp(0x01, 0x02);
-  pp.payload[0] = 0x02;
-  pp.payload[1] = 0x01;
+  Imu::Packet pp(COMMAND_CLASS_BASE); //  was 0x02
+  {
+    PacketEncoder encoder(pp);
+    encoder.beginField(DEVICE_PING);
+    encoder.endField();
+  }
   pp.calcChecksum();
 
   size_t i;
@@ -439,19 +491,26 @@ void Imu::selectBaudRate(unsigned int baud) {
   }
 
   if (!foundRate) {
-    throw runtime_error("Failed to reach device " + device_);
+    throw std::runtime_error("Failed to reach device " + device_);
   }
 
   //  we are on the correct baud rate, now change to the new rate
-  Packet comm(0x0C, 0x07);
-  assert(encode(comm.payload, u8(0x07), u8(0x40), u8(0x01),
-                static_cast<uint32_t>(baud)) == 0x07);
+  Packet comm(COMMAND_CLASS_3DM);  //  was 0x07
+  {
+    PacketEncoder encoder(comm);
+    encoder.beginField(COMMAND_UART_BAUD_RATE);
+    encoder.append(FUNCTION_APPLY);
+    encoder.append(static_cast<uint32_t>(baud));
+    encoder.endField();
+    assert(comm.length == 0x07);
+  }
   comm.calcChecksum();
 
-  int code = sendCommand(comm, 300);
+  int code = sendCommand(comm);
   if (code <= 0) {
-    throw runtime_error("Device rejected baud rate " + to_string(baud) +
-                        " (Code: " + to_string(code) + ")");
+    std::stringstream ss;
+    ss << "Device rejected baud rate " << baud << " (Code: " << code << ")";
+    throw std::runtime_error(ss.str());
   }
 
   //  device has switched baud rate, now we should also
@@ -460,12 +519,12 @@ void Imu::selectBaudRate(unsigned int baud) {
   }
 
   //  ping
-  if (ping(300) <= 0) {
-    throw runtime_error("Device did not respond to ping");
+  if (ping() <= 0) {
+    throw std::runtime_error("Device did not respond to ping");
   }
 }
 
-int Imu::ping(unsigned int to) {
+int Imu::ping() {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_PING);
@@ -474,10 +533,10 @@ int Imu::ping(unsigned int to) {
   //p.payload[1] = 0x01;
   p.calcChecksum();
   assert(p.checkMSB == 0xE0 && p.checkLSB == 0xC6);
-  return sendCommand(p, to);
+  return sendCommand(p);
 }
 
-int Imu::idle(unsigned int to) {
+int Imu::idle() {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_IDLE);
@@ -487,19 +546,17 @@ int Imu::idle(unsigned int to) {
   //p.payload[1] = 0x02;
   p.calcChecksum();
   assert(p.checkMSB == 0xE1 && p.checkLSB == 0xC7);
-  return sendCommand(p, to);
+  return sendCommand(p);
 }
 
-int Imu::resume(unsigned int to) {
+int Imu::resume() {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_RESUME);
   encoder.endField();
-//  p.payload[0] = 0x02;
-//  p.payload[1] = 0x06;
   p.calcChecksum();
   assert(p.checkMSB == 0xE5 && p.checkLSB == 0xCB);
-  return sendCommand(p, to);
+  return sendCommand(p);
 }
 
 int Imu::getDeviceInfo(Imu::Info &info) {
@@ -507,13 +564,10 @@ int Imu::getDeviceInfo(Imu::Info &info) {
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_GET_DEVICE_INFO);
   encoder.endField();
-  
- // p.payload[0] = 0x02;
-  //p.payload[1] = 0x03;
   p.calcChecksum();
   assert(p.checkMSB == 0xE2 && p.checkLSB == 0xC8);
 
-  int comm = sendCommand(p, kTimeout);
+  int comm = sendCommand(p);
   if (comm > 0) {
     PacketDecoder decoder(packet_);
     const bool advance = decoder.advanceTo(FIELD_DEVICE_INFO);
@@ -555,12 +609,9 @@ int Imu::getIMUDataBaseRate(uint16_t &baseRate) {
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_GET_IMU_BASE_RATE);
   encoder.endField();
-  
-  //p.payload[0] = 0x02;
-  //p.payload[1] = 0x06;
   p.calcChecksum();
 
-  int comm = sendCommand(p, kTimeout);
+  int comm = sendCommand(p);
   if (comm > 0) {
     PacketDecoder decoder(packet_);
     const bool advance = decoder.advanceTo(FIELD_IMU_BASERATE);
@@ -576,7 +627,7 @@ int Imu::getFilterDataBaseRate(uint16_t &baseRate) {
   p.payload[1] = 0x0B;
   p.calcChecksum();
 
-  int comm = sendCommand(p, kTimeout);
+  int comm = sendCommand(p);
   if (comm > 0) {
     decode(&packet_.payload[6], 1, &baseRate);
   }
@@ -600,7 +651,7 @@ int Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
 //  p.payload[4] = 0x02;                 //  diagnostic mode
 //  p.calcChecksum();
 
-  int comm = sendCommand(p, kTimeout);
+  int comm = sendCommand(p);
   if (comm > 0) {
     PacketDecoder decoder(packet_);
     const bool advance = decoder.advanceTo(FIELD_STATUS_REPORT);
@@ -681,7 +732,6 @@ int Imu::setIMUDataRate(uint16_t decimation,
   
   encoder.endField();
   p.calcChecksum();
-  p.print();
   
  /* auto sum = p.checksum;
   
@@ -714,7 +764,7 @@ int Imu::setIMUDataRate(uint16_t decimation,
   p.calcChecksum();
   p.print();
   assert(p.checksum == sum);*/
-  return sendCommand(p, kTimeout);
+  return sendCommand(p);
 }
 
 int Imu::setFilterDataRate(uint16_t decimation, const std::bitset<2>& sources) {
@@ -782,7 +832,7 @@ int Imu::setFilterDataRate(uint16_t decimation, const std::bitset<2>& sources) {
 //  p.payload[0] = 4 + 3 * descCount;
 
 //  p.calcChecksum();
-  return sendCommand(p, kTimeout);
+  return sendCommand(p);
 }
 
 int Imu::enableMeasurements(bool accel, bool magnetometer) {
@@ -800,7 +850,7 @@ int Imu::enableMeasurements(bool accel, bool magnetometer) {
   }
 
   p.calcChecksum();
-  return sendCommand(p, kTimeout);
+  return sendCommand(p);
 }
 
 int Imu::enableBiasEstimation(bool enabled) {
@@ -815,18 +865,7 @@ int Imu::enableBiasEstimation(bool enabled) {
   encoder.endField();
   p.calcChecksum();
   
-  return sendCommand(p, kTimeout);
-  
-  /*Imu::Packet p(0x0D, 0x05);
-  p.payload[0] = 0x05;
-  p.payload[1] = 0x14;
-  p.payload[2] = 0x01;
-
-  
-  encode(&p.payload[3], flag);
-  p.calcChecksum();
-
-  return sendCommand(p, kTimeout);*/
+  return sendCommand(p);
 }
 
 int Imu::setHardIronOffset(float offset[3]) {
@@ -837,7 +876,7 @@ int Imu::setHardIronOffset(float offset[3]) {
 
   encode(&p.payload[3], offset[0], offset[1], offset[2]);
   p.calcChecksum();
-  return sendCommand(p, kTimeout);
+  return sendCommand(p);
 }
 
 int Imu::setSoftIronMatrix(float matrix[9]) {
@@ -850,7 +889,7 @@ int Imu::setSoftIronMatrix(float matrix[9]) {
          matrix[5], matrix[6], matrix[7], matrix[8]);
 
   p.calcChecksum();
-  return sendCommand(p, kTimeout);
+  return sendCommand(p);
 }
 
 int Imu::enableIMUStream(bool enabled) {
@@ -862,18 +901,7 @@ int Imu::enableIMUStream(bool enabled) {
   encoder.endField();
   p.calcChecksum();
   assert(p.checkMSB == 0x04 && p.checkLSB == 0x1A);
-  return sendCommand(p, kTimeout);
-  
- /* Packet p(0x0C, 0x05);
-  p.payload[0] = 0x05;
-  p.payload[1] = 0x11;
-  p.payload[2] = 0x01; //  apply new settings
-  p.payload[3] = 0x01; //  device: IMU
-  p.payload[4] = (enabled == true);
-
-  p.calcChecksum();
-  printf("Check MSB: %u, LSB: %u", p.checkMSB, p.checkLSB);
-  return sendCommand(p, kTimeout);*/
+  return sendCommand(p);
 }
 
 int Imu::enableFilterStream(bool enabled) {
@@ -885,17 +913,7 @@ int Imu::enableFilterStream(bool enabled) {
   encoder.endField();
   p.calcChecksum();
   assert(p.checkMSB == 0x06 && p.checkLSB == 0x1E);
-  
-  /*Packet p(0x0C, 0x05);
-  p.payload[0] = 0x05;
-  p.payload[1] = 0x11;
-  p.payload[2] = 0x01;
-  p.payload[3] = 0x03; //  device: estimation filter
-  p.payload[4] = (enabled == true);
-
-  p.calcChecksum();
-  printf("Check MSB: %u, LSB: %u", p.checkMSB, p.checkLSB);*/
-  return sendCommand(p, kTimeout);
+  return sendCommand(p);
 }
 
 void
@@ -936,9 +954,8 @@ int Imu::pollInput(unsigned int to) {
   return -1;
 }
 
-int Imu::handleRead(
-    size_t bytes_transferred) //  parses packets out of the input buffer
-{
+//  parses packets out of the input buffer
+int Imu::handleRead(size_t bytes_transferred) {
   //  read data into queue
   for (size_t i = 0; i < bytes_transferred; i++) {
     queue_.push_back(buffer_[i]);
@@ -989,13 +1006,13 @@ int Imu::handleRead(
         packet_.checkLSB = byte;
 
         //  check checksum
-        uint16_t sum = packet_.checksum;
-
+        const uint16_t sum = packet_.checksum;
         packet_.calcChecksum();
 
         if (sum != packet_.checksum) {
           //  invalid, go back to waiting for a marker in the stream
-          ROS_WARN("Warning: Dropped packet with mismatched checksum\n");
+          std::cout << "Warning: Dropped packet with mismatched checksum\n"
+                    << std::flush;
         } else {
           //  packet is valid, remove relevant data from queue
           for (size_t k = 0; k <= srcIndex_; k++) {
@@ -1020,84 +1037,75 @@ int Imu::handleRead(
 void Imu::processPacket() {
   IMUData data;
   FilterData filterData;
-
-  if (packet_.is_imu_data()) {
+  PacketDecoder decoder(packet_);
+  
+  if (packet_.isIMUData()) {
     //  process all fields in the packet
-    size_t idx = 0;
-
-    while (idx + 1 < sizeof(packet_.payload)) {
-      size_t len = packet_.payload[idx];
-      size_t ddesc = packet_.payload[idx + 1];
-
-      if (!len) {
+    for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
+      switch (d) {
+      case FIELD_ACCELEROMETER:
+        decoder.extract(3, &data.accel[0]);
+        data.fields |= IMUData::Accelerometer;
+        break;
+      case FIELD_GYROSCOPE:
+        decoder.extract(3, &data.gyro[0]);
+        data.fields |= IMUData::Gyroscope;
+        break;
+      case FIELD_MAGNETOMETER:
+        decoder.extract(3, &data.mag[0]);
+        data.fields |= IMUData::Magnetometer;
+        break;
+      case FIELD_BAROMETER:
+        decoder.extract(1, &data.pressure);
+        data.fields |= IMUData::Barometer;
+        break;
+      default:
+        std::stringstream ss;
+        ss << "Unsupported field in IMU packet: " << std::hex << d;
+        throw std::runtime_error(ss.str());
         break;
       }
-
-      if (ddesc >= 0x04 && ddesc <= 0x06) //  accel/gyro/mag
-      {
-        float *buf = 0;
-        switch (ddesc) {
-        case 0x04:
-          buf = data.accel;
-          break;
-        case 0x05:
-          buf = data.gyro;
-          break;
-        case 0x06:
-          buf = data.mag;
-          break;
-        };
-        assert(buf != 0);
-
-        decode(&packet_.payload[idx + 2], 3, buf);
-      } else if (ddesc == 0x17) //  pressure sensor
-      {
-        decode(&packet_.payload[idx + 2], 1, &data.pressure);
-      } else {
-        ROS_WARN("Warning: Unsupported data field present in IMU packet");
-      }
-
-      idx += len;
     }
 
-    if (this->imuDataCallback_) {
+    if (imuDataCallback_) {
       imuDataCallback_(data);
     }
-  } else if (packet_.is_filter_data()) {
-
-    size_t idx = 0;
-
-    while (idx + 1 < sizeof(packet_.payload)) {
-      size_t len = packet_.payload[idx];
-      size_t ddesc = packet_.payload[idx + 1];
-
-      if (!len) {
+  } else if (packet_.isFilterData()) {
+    for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
+      switch (d) {
+      case FIELD_QUATERNION:
+        decoder.extract(4, &filterData.quaternion[0]);
+        filterData.fields |= FilterData::Quaternion;
+        break;
+      case FIELD_GYRO_BIAS:
+        decoder.extract(3, &filterData.bias[0]);
+        filterData.fields |= FilterData::Bias;
+        break;
+      default:
+        std::stringstream ss;
+        ss << "Unsupported field in filter packet: " << std::hex << d;
+        throw std::runtime_error(ss.str());
         break;
       }
-
-      if (ddesc == 0x03) //  quaternion
-      {
-        decode(&packet_.payload[idx + 2], 4, filterData.quaternion);
-        decode(&packet_.payload[idx + 2 + sizeof(float) * 4], 1,
-               &filterData.quatStatus);
-      } else if (ddesc == 0x06) {
-        decode(&packet_.payload[idx + 2], 3, filterData.bias);
-        decode(&packet_.payload[idx + 2 + sizeof(float) * 3], 1,
-               &filterData.biasStatus);
-      } else {
-        ROS_WARN("Warning: Unsupported data field present in estimator packet");
-      }
-
-      idx += len;
     }
 
-    if (this->filterDataCallback_) {
+    if (filterDataCallback_) {
       filterDataCallback_(filterData);
     }
-  } else if (packet_.is_ack()) {
-    if (packet_.payload[3] != 0) {
-      ROS_ERROR("Received NACK packet: 0x%02x, 0x%02x, 0x%02x\n",
-                packet_.descriptor, packet_.payload[2], packet_.payload[3]);
+  } else {
+    //  find any NACK fields and log them
+    for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
+      if (decoder.fieldIsAckOrNack()) {
+        uint8_t cmd_code[2];  //  0 = command echo, 1 = command code
+        decoder.extract(2, &cmd_code[0]);
+        if (cmd_code[1] != 0) {
+          //  error occurred
+          std::cout << "Received NACK packet (class, command, code): ";
+          std::cout << std::hex << static_cast<int>(packet_.descriptor) << ", ";
+          std::cout << static_cast<int>(cmd_code[0]) << ", "; 
+          std::cout << static_cast<int>(cmd_code[1]) << "\n" << std::flush;
+        }
+      }
     }
   }
 }
@@ -1140,7 +1148,7 @@ int Imu::writePacket(const Packet &p, unsigned int to) {
     }
   }
 
-  return 1; //  wrote w/o issue
+  return static_cast<int>(written); //  wrote w/o issue
 }
 
 void Imu::sendPacket(const Packet &p, unsigned int to) {
@@ -1148,26 +1156,26 @@ void Imu::sendPacket(const Packet &p, unsigned int to) {
   if (wrote < 0) {
     throw io_error(strerror(errno));
   } else if (wrote == 0) {
-    throw timeout_error(p.descriptor, p.payload[1]);
+    throw timeout_error(p.descriptor, p.length, to);
   }
 }
 
 int Imu::receiveResponse(const Packet &command, unsigned int to) {
   //  read back response
-  auto tstart = chrono::high_resolution_clock::now();
-  auto tend = tstart + chrono::milliseconds(to);
+  auto tstart = std::chrono::high_resolution_clock::now();
+  auto tend = tstart + std::chrono::milliseconds(to);
 
-  while (chrono::high_resolution_clock::now() <= tend) {
+  while (std::chrono::high_resolution_clock::now() <= tend) {
     auto resp = pollInput(1);
     if (resp > 0) {
       //  check if this is an ack
-      int ack = packet_.ack_code(command);
+      int ack = packet_.ackErrorCodeFor(command);
 
       if (ack == 0) {
         return 1;
       } else if (ack > 0) {
-        ROS_WARN("Warning: Received NACK code %x for command {%x, %x}", ack,
-                 command.descriptor, command.payload[1]);
+       // ROS_WARN("Warning: Received NACK code %x for command {%x, %x}", ack,
+        //         command.descriptor, command.payload[1]);
         return -ack;
       }
     } else if (resp < 0) {
@@ -1179,7 +1187,7 @@ int Imu::receiveResponse(const Packet &command, unsigned int to) {
   return 0;
 }
 
-int Imu::sendCommand(const Packet &p, unsigned int to) {
-  sendPacket(p, to);
-  return receiveResponse(p, to);
+int Imu::sendCommand(const Packet &p) {
+  sendPacket(p, rwTimeout_);
+  return receiveResponse(p, rwTimeout_);
 }

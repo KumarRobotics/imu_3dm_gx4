@@ -61,30 +61,23 @@ public:
     };
 
     /**
-     * @brief is_ack True if this packet corresponds to a [N]ACK message.
+     * @brief True if this packet corresponds to an imu data message.
      */
-    bool is_ack() const;
+    bool isIMUData() const;
 
     /**
-     * @brief is_imu_data True if this packet corresponds to an imu data
-     * message.
+     * @brief True if this packet corresponds to a filter data message
      */
-    bool is_imu_data() const;
+    bool isFilterData() const;
 
     /**
-     * @brief is_filter_data True if this packet corresponds to a filter data
-     * message
-     */
-    bool is_filter_data() const;
-
-    /**
-     * @brief ack_code Extract the ACK code from this packet.
+     * @brief Extract the ACK code from this packet.
      * @param commmand Command packet to which this ACK should correspond.
      *
-     * @return -1 if the packets do not correspond or this is not an ACK, the
-     * error code otherwise.
+     * @return -1 if the packets do not correspond or this is not an ACK. The
+     * error code is returned otherwise.
      */
-    int ack_code(const Packet &command) const;
+    int ackErrorCodeFor(const Packet &command) const;
 
     /**
      * @brief Calculate the packet checksum. Sets the checksum variable
@@ -98,18 +91,11 @@ public:
      */
     Packet(uint8_t desc = 0, uint8_t len = 0);
     
-    void print() const {
-      printf("Sync: %x\n", sync);
-      printf("Descriptor: %x\n", descriptor);
-      printf("Length: %x\n", length);
-      printf("Payload: ");
-      for (size_t s=0; s < length; s++) {
-        printf("%x ", payload[s]);
-      }
-      printf("Check MSB/LSB: %x/%x\n", checkMSB, checkLSB);
-      printf("\n");
-    }
-    
+    /**
+     * @brief Make a 'human-readable' version of the packet.
+     * @return std::string
+     */
+    std::string toString() const;
   } __attribute__((packed));
 
   /**
@@ -192,6 +178,10 @@ public:
 
   /* Exceptions */
 
+  struct packet_error : public std::runtime_error {
+    packet_error(const std::string& desc) : std::runtime_error(desc) {}
+  };
+  
   /**
    * @brief io_error Generated when a low-level IO command fails.
    */
@@ -204,10 +194,13 @@ public:
    * device hang up.
    */
   struct timeout_error : public std::exception {
-    timeout_error(uint8_t desc1, uint8_t desc2) : pDesc(desc1), fDesc(desc2) {}
+    timeout_error(uint8_t desc, 
+                  uint8_t length,
+                  unsigned int to) : pDesc(desc), pLength(length), to(to) {}
 
-    uint8_t pDesc; //  packet descriptor
-    uint8_t fDesc; //  field descriptor
+    uint8_t pDesc;    //  packet descriptor
+    uint8_t pLength;  //  packet length
+    unsigned int to;  //  timeout value
   };
 
   /**
@@ -248,6 +241,7 @@ public:
    * @note This command will attempt to communicate w/ the device using all
    * possible baud rates. Once the current baud rate is determined, it will 
    * switch to 'baud' and send the UART command.
+   * @throws runtime_error, io_error, timeout_error
    */
   void selectBaudRate(unsigned int baud);
 
@@ -258,7 +252,7 @@ public:
    * @return 0 on timeout, negative value if NACK is received, positive on
    * success.
    */
-  int ping(unsigned int to);
+  int ping();
 
   /**
    * @brief idle Switch the device to idle mode.
@@ -267,7 +261,7 @@ public:
    * @return 0 on timeout, negative value if NACK is received, positive on
    * success.
    */
-  int idle(unsigned int to);
+  int idle();
 
   /**
    * @brief resume Resume the device.
@@ -276,7 +270,7 @@ public:
    * @return 0 on timeout, negative value if NACK is received, positive on
    * success.
    */
-  int resume(unsigned int to);
+  int resume();
 
   /**
    * @brief getDeviceInfo Get hardware information about the device.
@@ -417,13 +411,13 @@ private:
 
   int receiveResponse(const Packet &command, unsigned int to);
 
-  int sendCommand(const Packet &p, unsigned int to);
+  int sendCommand(const Packet &p);
 
   bool termiosBaudRate(unsigned int baud);
   
   const std::string device_;
-
   int fd_;
+  unsigned int rwTimeout_;
 
   std::vector<uint8_t> buffer_;
   std::deque<uint8_t> queue_;

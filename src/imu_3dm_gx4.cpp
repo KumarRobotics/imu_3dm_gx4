@@ -144,7 +144,7 @@ int main(int argc, char **argv) {
   }
 
     ROS_INFO("Idling the device");
-    assert_throw(imu.idle(300));
+    assert_throw(imu.idle());
 
     //  read back data rates
     uint16_t baseRate;
@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
     }
 
     ROS_INFO("Resuming the device");
-    assert_throw(imu.resume(300));
+    assert_throw(imu.resume());
 
 #undef assert_throw
 
@@ -228,7 +228,8 @@ int main(int argc, char **argv) {
     ROS_ERROR("IO error: %s\n", e.what());
   }
   catch (Imu::timeout_error &e) {
-    ROS_ERROR("Command write timed out: 0x%02x, 0x%02x\n", e.fDesc, e.pDesc);
+    ROS_ERROR("Write timed out (class,length,timeout): 0x%02x, 0x%02x, 0x%02x\n", 
+              e.pDesc, e.pLength, e.to);
   }
   catch (std::exception &e) {
     ROS_ERROR("Exception: %s\n", e.what());
