@@ -4,10 +4,13 @@
 
 The `imu_3dm_gx4` package provides support for the [Lord Corporation](http://www.microstrain.com) Microstrain [3DM-GX4-25](http://www.microstrain.com/inertial/3dm-gx4-25) series IMU. The package employs the MIP packet format, so it could conceivably be adapted to support other versions of Microstrain products with relatively little effort. At present, the 15 and 45 series AHRS systems are not supported.
 
+This package works on Ubuntu 14.04 (ROS _indigo_) or later.
+
 ## Version History
 
 * **0.0.2**:
   - Units of acceleration are now m/s^2, in agreement with ROS convention.
+  - Cleaned up code base, replaced error codes with exceptions.
   - 
   - Removed TF broadcast option.
   - Reformated code base to clang-llvm convention.
@@ -49,8 +52,7 @@ Additional topics will be published if `enable_filter` is true:
 ## FAQs
 
 1. What data rates can I use?
-The driver supports up to 1000Hz for IMU data, and up to 500Hz for filter data. For
-high data rates, it is recommended that you use a baudrate of 921600.
+The driver supports up to 1000Hz for IMU data, and up to 500Hz for filter data. For high data rates, it is recommended that you use a baudrate of 921600.
 
 2. The driver can't open my device, even though the path is specified correctly - what gives??
 Make sure you have ownership of the device in `/dev`, or are part of the dialout group.

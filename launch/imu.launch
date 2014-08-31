@@ -3,18 +3,20 @@
     <arg name="imu_node" default="imu_3dm_gx4"/>
 
     <!-- Baudrate of serial comms (see manual for allowed values) -->
-    <arg name="baudrate" default="115200" />
+    <arg name="baudrate" default="921600" />
 
     <!-- Path to device in /dev -->
     <arg name="device" default="/dev/ttyACM0" />
 
     <!-- Decimation value x, where freq = 1000 / x -->
-    <arg name="imu_decimation" default="10"/>
+    <arg name="imu_decimation" default="1"/>
+    <arg name="filter_decimation" default="1"/>
 
     <node pkg="imu_3dm_gx4" name="$(arg imu_node)" type="imu_3dm_gx4" output="screen">
         <param name="device" type="string" value="$(arg device)" />
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="imu_decimation" type="int" value="$(arg imu_decimation)" />
+        <param name="filter_decimation" type="int" value="$(arg filter_decimation)"/>
         <param name="enable_filter" type="bool" value="true"/>
     </node>
 </launch>

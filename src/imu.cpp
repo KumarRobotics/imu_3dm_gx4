@@ -330,6 +330,43 @@ std::string Imu::Packet::toString() const {
   return ss.str();
 }
 
+std::map <std::string, std::string> Imu::Info::toMap() const {
+  std::map<std::string, std::string> map;
+  map["Firmware version"] = std::to_string(firmwareVersion);
+  map["Model name"] = modelName;
+  map["Model number"] = modelNumber;
+  map["Serial number"] = serialNumber;
+  map["Device options"] = deviceOptions;
+  //  omit lot number since it is empty
+  return map;
+}
+
+std::map <std::string, unsigned int> Imu::DiagnosticFields::toMap() const {
+  std::map<std::string, unsigned int> map;
+  map["Model number"] = modelNumber;
+  map["Selector"] = selector;
+  map["Status flags"] = statusFlags;
+  map["System timer"] = systemTimer;
+  map["Num 1PPS Pulses"] = num1PPSPulses;
+  map["Last 1PPS Pulse"] = last1PPSPulse;
+  map["Imu stream enabled"] = imuStreamEnabled;
+  map["Filter stream enabled"] = filterStreamEnabled;
+  map["Imu packets dropped"] = imuPacketsDropped;
+  map["Filter packets dropped"] = filterPacketsDropped;
+  map["Com bytes written"] = comBytesWritten;
+  map["Com bytes read"] = comBytesRead;
+  map["Com num write overruns"] = comNumReadOverruns;
+  map["Com num read overruns"] = comNumReadOverruns;
+  map["Usb bytes written"] = usbBytesWritten;
+  map["Usb bytes read"] = usbBytesRead;
+  map["Usb num write overruns"] = usbNumWriteOverruns;
+  map["Usb num read overruns"] = usbNumReadOverruns;
+  map["Num imu parse errors"] = numIMUParseErrors;
+  map["Total imu messages"] = totalIMUMessages;
+  map["Last imu message"] = lastIMUMessage;
+  return map;
+}
+
 Imu::command_error::command_error(const Packet& p, uint8_t code) : 
   std::runtime_error(generateString(p, code)) {}
 
