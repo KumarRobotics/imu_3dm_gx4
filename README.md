@@ -11,9 +11,10 @@ This package works on Ubuntu 14.04 (ROS _indigo_) or later.
 * **0.0.2**:
   - Units of acceleration are now m/s^2, in agreement with ROS convention.
   - Cleaned up code base, replaced error codes with exceptions.
-  - 
+  - Status can now be viewed from `rqt_runtime_monitor`.
+  - Added option to enable/disable accelerometer update in the estimator.
   - Removed TF broadcast option.
-  - Reformated code base to clang-llvm convention.
+  - Reformatted code base to clang-llvm convention.
 * **0.0.1**:
   - First release.
 
@@ -28,6 +29,8 @@ The following additional options are present for leveraging the 3DM's onboard es
 * `enable_filter`: If true, the IMU estimation filter is enabled. Default is false.
 * `filter_decimation`: Estimation filter rate to use. Determines the filter data rate according to: `hz = 500 / decimation`. Default is 5.
 * `enable_mag_update`: If true, the IMU will use the magnetometer to correct the heading angle estimate. Default is false.
+* `enable_accel_update`: If true, the IMU will use the accelerometer to correct
+the roll/pitch angle estimates. Default is true.
 
 **In order to launch the node** (streaming IMU data at 100Hz), execute:
 

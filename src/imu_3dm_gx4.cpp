@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
   int baudrate;
   int imu_decimation, filter_decimation;
   bool enable_filter;
-  bool enable_mag_update;
+  bool enable_mag_update, enable_accel_update;
 
   //  load parameters from launch file
   nh.param<std::string>("device", device, "/dev/ttyACM0");
@@ -156,6 +156,7 @@ int main(int argc, char **argv) {
   nh.param<int>("filter_decimation", filter_decimation, 5);
   nh.param<bool>("enable_filter", enable_filter, false);
   nh.param<bool>("enable_mag_update", enable_mag_update, false);
+  nh.param<bool>("enable_accel_update", enable_accel_update, true);
 
   pubIMU = nh.advertise<sensor_msgs::Imu>("imu", 1);
   pubMag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
@@ -211,7 +212,7 @@ int main(int argc, char **argv) {
       imu.enableFilterStream(true);
 
       ROS_INFO("Enabling filter measurements");
-      imu.enableMeasurements(true, enable_mag_update);
+      imu.enableMeasurements(enable_accel_update, enable_mag_update);
 
       ROS_INFO("Enabling gyro bias estimation");
       imu.enableBiasEstimation(true);
