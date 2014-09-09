@@ -56,6 +56,14 @@ Additional topics will be published if `enable_filter` is true:
 
 * Even when the `enable_mag_update` option is set to false (and the device acknowledges the setting with a positive ACK), the `quat_status` field is received as 3. This has not been fully debugged yet.
 
+## Specifications
+
+* Specifications can be found at [3DM-GX4-25](http://www.microstrain.com/inertial/3dm-gx4-25).
+
+We provide YAML file to work with [Kalibr](https://github.com/ethz-asl/kalibr), which can be found in the `calib` folder.
+
+Details can be found at [Kalibr wiki](https://github.com/ethz-asl/kalibr/wiki/IMU-Noise-Model-and-Intrinsics#how-to-obtain-the-parameters-for-your-imu).
+
 ## FAQs
 
 1. What data rates can I use?
