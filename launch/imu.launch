@@ -16,11 +16,11 @@
     <arg name="filter_decimation" default="5"/>
 
     <!-- Enable/Disable the filter -->
-    <arg name="enable_filter" value="false"/>
+    <arg name="enable_filter" default="false"/>
 
     <!-- Enable/Disable filter updates -->
-    <arg name="enable_accel_update" value="false"/>
-    <arg name="enable_mag_update" value="false"/>
+    <arg name="enable_accel_update" default="false"/>
+    <arg name="enable_mag_update" default="false"/>
 
     <node pkg="imu_3dm_gx4" name="$(arg imu_node)" type="imu_3dm_gx4" output="screen">
         <param name="device" type="string" value="$(arg device)" />
