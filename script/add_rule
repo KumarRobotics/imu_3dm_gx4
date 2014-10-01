@@ -13,7 +13,7 @@ then
 	# add group and user
 	groupadd imu
 	adduser $SUDO_USER imu
-	
+
 	# addudev rule
 	DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # get directory where this script is stored
 	cp $DIR/imu_3dm_gx4.rules /etc/udev/rules.d/
