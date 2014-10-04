@@ -1,28 +1,29 @@
 <launch>
-    <!-- Name of the node -->
-    <arg name="imu_node" default="imu_3dm_gx4"/>
+    <!-- Node Settings -->
+    <arg name="output" default="screen"/>
+    <arg name="imu" default="imu"/>
 
-    <!-- Baudrate of serial comms (see manual for allowed values) -->
-    <arg name="baudrate" default="921600" />
-
-    <!-- Path to device in /dev -->
+    <!-- IMU Settings -->
     <arg name="device" default="/dev/ttyACM0" />
 
     <!-- Frame ID for messages -->
-    <arg name="frame_id" default="imu"/>
+    <arg name="frame_id" default="$(arg imu)"/>
+
+    <!-- Baudrate of serial comms (see manual for allowed values) -->
+    <arg name="baudrate" default="921600"/>
 
     <!-- Data rate in Hz -->
     <arg name="imu_rate" default="100"/>
     <arg name="filter_rate" default="100"/>
 
     <!-- Enable/Disable the filter -->
-    <arg name="enable_filter" value="false"/>
+    <arg name="enable_filter" default="false"/>
 
     <!-- Enable/Disable filter updates -->
-    <arg name="enable_accel_update" value="false"/>
-    <arg name="enable_mag_update" value="false"/>
+    <arg name="enable_accel_update" default="false"/>
+    <arg name="enable_mag_update" default="false"/>
 
-    <node pkg="imu_3dm_gx4" name="$(arg imu_node)" type="imu_3dm_gx4" output="screen">
+    <node pkg="imu_3dm_gx4" name="$(arg imu)" type="imu_3dm_gx4" output="$(arg output)">
         <param name="device" type="string" value="$(arg device)" />
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
