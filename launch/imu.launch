@@ -11,9 +11,9 @@
     <!-- Frame ID for messages -->
     <arg name="frame_id" default="imu"/>
 
-    <!-- Decimation value x, where freq = 1000 / x -->
-    <arg name="imu_decimation" default="10"/>
-    <arg name="filter_decimation" default="5"/>
+    <!-- Data rate in Hz -->
+    <arg name="imu_rate" default="100"/>
+    <arg name="filter_rate" default="100"/>
 
     <!-- Enable/Disable the filter -->
     <arg name="enable_filter" value="false"/>
