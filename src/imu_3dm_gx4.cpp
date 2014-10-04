@@ -30,7 +30,7 @@ std::shared_ptr<diagnostic_updater::Updater> updater;
 std::shared_ptr<diagnostic_updater::TopicDiagnostic> imuDiag;
 std::shared_ptr<diagnostic_updater::TopicDiagnostic> filterDiag;
 
-void publish_data(const Imu::IMUData &data) {
+void publishData(const Imu::IMUData &data) {
   sensor_msgs::Imu imu;
   sensor_msgs::MagneticField field;
   sensor_msgs::FluidPressure pressure;
@@ -75,7 +75,7 @@ void publish_data(const Imu::IMUData &data) {
   }
 }
 
-void publish_filter(const Imu::FilterData &data) {
+void publishFilter(const Imu::FilterData &data) {
   assert(data.fields & Imu::FilterData::Quaternion);
   assert(data.fields & Imu::FilterData::Bias);
   assert(data.fields & Imu::FilterData::AngleUnertainty);
@@ -158,25 +158,30 @@ int main(int argc, char **argv) {
 
   std::string device;
   int baudrate;
-  int imu_decimation, filter_decimation;
-  bool enable_filter;
-  bool enable_mag_update, enable_accel_update;
-
+  bool enableFilter;
+  bool enableMagUpdate, enableAccelUpdate;
+  int requestedImuRate, requestedFilterRate;
+  
   //  load parameters from launch file
   nh.param<std::string>("device", device, "/dev/ttyACM0");
   nh.param<int>("baudrate", baudrate, 115200);
   nh.param<std::string>("frameId", frameId, std::string("imu"));
-  nh.param<int>("imu_decimation", imu_decimation, 10);
-  nh.param<int>("filter_decimation", filter_decimation, 5);
-  nh.param<bool>("enable_filter", enable_filter, false);
-  nh.param<bool>("enable_mag_update", enable_mag_update, false);
-  nh.param<bool>("enable_accel_update", enable_accel_update, true);
-
+  nh.param<int>("imu_rate", requestedImuRate, 100);
+  nh.param<int>("filter_rate", requestedFilterRate, 100);
+  nh.param<bool>("enable_filter", enableFilter, false);
+  nh.param<bool>("enable_mag_update", enableMagUpdate, false);
+  nh.param<bool>("enable_accel_update", enableAccelUpdate, true);
+  
+  if (requestedFilterRate < 0 || requestedImuRate < 0) {
+    ROS_ERROR("imu_rate and filter_rate must be > 0");
+    return -1;
+  }
+  
   pubIMU = nh.advertise<sensor_msgs::Imu>("imu", 1);
   pubMag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
   pubPressure = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
 
-  if (enable_filter) {
+  if (enableFilter) {
     pubFilter = nh.advertise<imu_3dm_gx4::FilterOutput>("filter", 1);
   }
 
@@ -205,15 +210,28 @@ int main(int argc, char **argv) {
     imu.getFilterDataBaseRate(filterBaseRate);
     ROS_INFO("Filter data base rate: %u Hz", filterBaseRate);
 
-    ROS_INFO("Selecting IMU decimation rate: %u", imu_decimation);
+    //  calculate decimation rates
+    if (static_cast<uint16_t>(requestedImuRate) > imuBaseRate) {
+      throw std::runtime_error("imu_rate cannot exceed " + 
+                               std::to_string(imuBaseRate));
+    }
+    if (static_cast<uint16_t>(requestedFilterRate) > filterBaseRate) {
+      throw std::runtime_error("filter_rate cannot exceed " + 
+                               std::to_string(filterBaseRate));
+    }
+    
+    const uint16_t imuDecimation = imuBaseRate / requestedImuRate;
+    const uint16_t filterDecimation = filterBaseRate / requestedFilterRate;
+    
+    ROS_INFO("Selecting IMU decimation: %u", imuDecimation);
     imu.setIMUDataRate(
-        imu_decimation, Imu::IMUData::Accelerometer | 
+        imuDecimation, Imu::IMUData::Accelerometer | 
           Imu::IMUData::Gyroscope |
           Imu::IMUData::Magnetometer |
           Imu::IMUData::Barometer);
 
-    ROS_INFO("Selecting filter decimation rate: %u", filter_decimation);
-    imu.setFilterDataRate(filter_decimation, Imu::FilterData::Quaternion |
+    ROS_INFO("Selecting filter decimation: %u", filterDecimation);
+    imu.setFilterDataRate(filterDecimation, Imu::FilterData::Quaternion |
                           Imu::FilterData::Bias |
                           Imu::FilterData::AngleUnertainty |
                           Imu::FilterData::BiasUncertainty);
@@ -221,12 +239,12 @@ int main(int argc, char **argv) {
     ROS_INFO("Enabling IMU data stream");
     imu.enableIMUStream(true);
 
-    if (enable_filter) {
+    if (enableFilter) {
       ROS_INFO("Enabling filter data stream");
       imu.enableFilterStream(true);
 
       ROS_INFO("Enabling filter measurements");
-      imu.enableMeasurements(enable_accel_update, enable_mag_update);
+      imu.enableMeasurements(enableAccelUpdate, enableMagUpdate);
 
       ROS_INFO("Enabling gyro bias estimation");
       imu.enableBiasEstimation(true);
@@ -234,8 +252,8 @@ int main(int argc, char **argv) {
       ROS_INFO("Disabling filter data stream");
       imu.enableFilterStream(false);
     }
-    imu.setIMUDataCallback(publish_data);
-    imu.setFilterDataCallback(publish_filter);
+    imu.setIMUDataCallback(publishData);
+    imu.setFilterDataCallback(publishFilter);
 
     //  configure diagnostic updater
     if (!nh.hasParam("diagnostic_period")) {
@@ -246,10 +264,11 @@ int main(int argc, char **argv) {
     const std::string hwId = info.modelName + "-" + info.modelNumber;
     updater->setHardwareID(hwId);
     
-    double imuRate = imuBaseRate / (1.0 * imu_decimation);
-    double filterRate = filterBaseRate / (1.0 * filter_decimation);
+    //  calculate the actual rates we will get
+    double imuRate = imuBaseRate / (1.0 * imuDecimation);
+    double filterRate = filterBaseRate / (1.0 * filterDecimation);
     imuDiag = configTopicDiagnostic("imu",&imuRate);
-    if (enable_filter) {
+    if (enableFilter) {
       filterDiag = configTopicDiagnostic("filter",&filterRate);
     }
     

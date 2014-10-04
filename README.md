@@ -8,6 +8,11 @@ This package works on Ubuntu 14.04 (ROS _indigo_) or later.
 
 ## Version History
 
+* **0.0.3**:
+  - Replaced `decimation` options with `rate` options. Decimation is automatically calculated.
+  - Added a file for use with Kalibr.
+  - Added a udev rule to configure permissions.
+
 * **0.0.2**:
   - Units of acceleration are now m/s^2, in agreement with ROS convention.
   - Cleaned up code base, replaced error codes with exceptions.
@@ -25,11 +30,11 @@ The `imu_3dm_gx4` node supports the following base options:
 * `device`: Path to the device in `/dev`. Defaults to `/dev/ttyACM0`.
 * `baudrate`: Baudrate to employ with serial communication. Defaults to `115200`.
 * `frame_id`: Frame to use in headers.
-* `imu_decimation`: IMU decimation rate to use. Determines the IMU data rate according to: `hz = 1000 / decimation`. Default is 10.
+* `imu_rate`: IMU rate to use, in Hz. Default is 100.
 
 The following additional options are present for leveraging the 3DM's onboard estimation filter:
 * `enable_filter`: If true, the IMU estimation filter is enabled. Default is false.
-* `filter_decimation`: Estimation filter rate to use. Determines the filter data rate according to: `hz = 500 / decimation`. Default is 5.
+* `filter_rate`: Filter rate to use, in Hz. Default is 100.
 * `enable_mag_update`: If true, the IMU will use the magnetometer to correct the heading angle estimate. Default is false.
 * `enable_accel_update`: If true, the IMU will use the accelerometer to correct
 the roll/pitch angle estimates. Default is true.
@@ -37,6 +42,16 @@ the roll/pitch angle estimates. Default is true.
 **In order to launch the node** (streaming IMU data at 100Hz), execute:
 
 `$ roslaunch imu_3dm_gx4 imu.launch`
+
+### Note on rate parameters:
+
+The `_rate` options command the requested frequency by calculating a 'decimation value', which is defined by the relation:
+
+```
+  frequency = base_frequency / decimation
+```
+
+Where the base frequency is 1kHz for the GX4. Since decimation values are integers, certain frequencies cannot be expressed by the above relation. 800Hz, for example, cannot be specified by an integer decimation rate. In these cases, you will receive whichever frequency is obtained by rounding decimation down to the nearest integer. Hence, requesting 800Hz will produce 1kHz.
 
 ## Output
 
@@ -55,6 +70,12 @@ Additional topics will be published if `enable_filter` is true:
 ## Known Issues
 
 * Even when the `enable_mag_update` option is set to false (and the device acknowledges the setting with a positive ACK), the `quat_status` field is received as 3. This has not been fully debugged yet.
+
+## Specifications
+
+* Specifications can be found at [3DM-GX4-25](http://www.microstrain.com/inertial/3dm-gx4-25).
+
+We provide YAML file to work with [Kalibr](https://github.com/ethz-asl/kalibr), which can be found in the `calib` folder.
 
 ## FAQs
 

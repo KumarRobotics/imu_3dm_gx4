@@ -12,9 +12,9 @@
     <!-- Baudrate of serial comms (see manual for allowed values) -->
     <arg name="baudrate" default="921600"/>
 
-    <!-- Decimation value x, where freq = 1000 / x -->
-    <arg name="imu_decimation" default="10"/>
-    <arg name="filter_decimation" default="5"/>
+    <!-- Data rate in Hz -->
+    <arg name="imu_rate" default="100"/>
+    <arg name="filter_rate" default="100"/>
 
     <!-- Enable/Disable the filter -->
     <arg name="enable_filter" default="false"/>
@@ -27,8 +27,8 @@
         <param name="device" type="string" value="$(arg device)" />
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
-        <param name="imu_decimation" type="int" value="$(arg imu_decimation)" />
-        <param name="filter_decimation" type="int" value="$(arg filter_decimation)"/>
+        <param name="imu_rate" type="int" value="$(arg imu_rate)" />
+        <param name="filter_rate" type="int" value="$(arg filter_rate)"/>
         <param name="enable_filter" type="bool" value="$(arg enable_filter)"/>
         <param name="enable_accel_update" type="bool" value="$(arg enable_accel_update)"/>
         <param name="enable_mag_update" type="bool" value="$(arg enable_mag_update)"/>
