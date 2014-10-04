@@ -43,6 +43,16 @@ the roll/pitch angle estimates. Default is true.
 
 `$ roslaunch imu_3dm_gx4 imu.launch`
 
+### Note on rate parameters:
+
+The `_rate` options command the requested frequency by calculating a 'decimation value', which is defined by the relation:
+
+```
+  frequency = base_frequency / decimation
+```
+
+Where the base frequency is 1kHz for the GX4. Since decimation values are integers, certain frequencies cannot be expressed by the above relation. 800Hz, for example, cannot be specified by an integer decimation rate. In these cases, you will receive whichever frequency is obtained by rounding decimation down to the nearest integer. Hence, requesting 800Hz will produce 1kHz.
+
 ## Output
 
 On launch, the node will configure the IMU according to the parameters and then enable streaming node. At least three topics are published:
