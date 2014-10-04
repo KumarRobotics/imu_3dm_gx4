@@ -65,8 +65,6 @@ Additional topics will be published if `enable_filter` is true:
 
 We provide YAML file to work with [Kalibr](https://github.com/ethz-asl/kalibr), which can be found in the `calib` folder.
 
-Details can be found at [Kalibr wiki](https://github.com/ethz-asl/kalibr/wiki/IMU-Noise-Model-and-Intrinsics#how-to-obtain-the-parameters-for-your-imu).
-
 ## FAQs
 
 1. What data rates can I use?
