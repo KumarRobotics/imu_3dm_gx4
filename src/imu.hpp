@@ -12,6 +12,7 @@
 #ifndef IMU_H_
 #define IMU_H_
 
+#include <stdexcept>
 #include <memory>
 #include <string>
 #include <deque>
