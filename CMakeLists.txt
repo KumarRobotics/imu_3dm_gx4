@@ -18,7 +18,7 @@ find_package(Boost REQUIRED)
 link_directories(${Boost_LIBRARY_DIR})
 include_directories(${Boost_INCLUDE_DIR})
 
-add_definitions("-std=c++11 -Wall -Werror")
+add_definitions("-std=c++0x -Wall -Werror")
 
 add_executable(${PROJECT_NAME} src/imu_3dm_gx4.cpp src/imu.cpp)
 target_link_libraries(${PROJECT_NAME}
