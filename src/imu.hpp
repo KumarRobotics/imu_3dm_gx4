@@ -398,7 +398,7 @@ private:
 
   int pollInput(unsigned int to);
 
-  std::size_t handleByte(const uint8_t& byte);
+  std::size_t handleByte(const uint8_t& byte, bool& found);
   
   int handleRead(size_t);
 

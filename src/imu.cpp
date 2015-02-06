@@ -894,13 +894,22 @@ int Imu::pollInput(unsigned int to) {
   return -1;
 }
 
-std::size_t Imu::handleByte(const uint8_t& byte) {
+/**
+ * @note handleByte will interpret a single byte. It will return the number
+ *  of bytes which can be cleared from the queue. On early failure, this will
+ *  always be 1 - ie. kSyncMSB should be cleared from the queue. On success, the
+ *  total length of the valid packet should be cleared.
+ */
+std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
+  found = false;
   if (state_ == Idle) {
     //  reset dstIndex_ to start of packet
     dstIndex_ = 0;
     if (byte == Imu::Packet::kSyncMSB) {
       packet_.syncMSB = byte;
       state_ = Reading;
+      //  clear previous packet out
+      memset(&packet_.payload[0], 0, sizeof(packet_.payload));
     } else {
       //  byte is no good, stay in idle
       return 1;
@@ -945,6 +954,7 @@ std::size_t Imu::handleByte(const uint8_t& byte) {
       } else {
         //  successfully read a packet
         processPacket();
+        found = true;
         return end+2;
       }
     }
@@ -962,102 +972,25 @@ int Imu::handleRead(size_t bytes_transferred) {
     queue_.push_back(buffer_[i]);
   }
   
-  while (srcIndex_ < queue_.size()) {
-    const uint8_t& head = queue_[srcIndex_];
-    const size_t clear = handleByte(head);
+  bool found = false;
+  while (srcIndex_ < queue_.size() && !found) {
+    const uint8_t head = queue_[srcIndex_];
+    const size_t clear = handleByte(head, found);
     //  pop 'clear' bytes from the queue
     for (size_t i=0; i < clear; i++) {
       queue_.pop_front();
     }
     if (clear) {
+      //  queue was shortened, return to head
       srcIndex_=0;
     } else {
+      //  continue up the queue
       srcIndex_++;
     }
   }
 
-//  if (state_ == Idle) {
-//    dstIndex_ = 0; //  reset counts
-//    srcIndex_ = 0;
-//  }
-
-//  while (srcIndex_ < queue_.size()) {
-//    if (state_ == Idle) {
-//      //   waiting for packet
-//      if (queue_.size() > 1) {
-//        if (queue_[0] == Imu::Packet::kSyncMSB &&
-//            queue_[1] == Imu::Packet::kSyncLSB) {
-//          //   found the magic ID
-//          packet_.syncMSB = queue_[0];
-//          state_ = Reading;
-
-//          //  clear out previous packet content
-//          memset(packet_.payload, 0, sizeof(packet_.payload));
-//        }
-//      }
-      
-//      queue_.pop_front();
-
-//      dstIndex_ = 1;
-//      srcIndex_ = 0;
-//    } else if (state_ == Reading) {
-//      const uint8_t& byte = queue_[srcIndex_];
-//      const size_t end = Packet::kHeaderLength + packet_.length;
-
-//      //  fill out fields of packet structure
-//      if (dstIndex_ == 1) {
-//        if (byte != Imu::Packet::kSyncLSB) {
-//          //  not a true header, throw away and go back to idle
-//          queue_.pop_front();
-//          state_ = Idle;
-//        } else {
-//          packet_.syncLSB = byte;
-//        }
-//      }
-//      else if (dstIndex_ == 2) {
-//        packet_.descriptor = byte;
-//      } 
-//      else if (dstIndex_ == 3) {
-//        packet_.length = byte;
-//      }
-//      else if (dstIndex_ < end) {
-//        packet_.payload[dstIndex_ - Packet::kHeaderLength] = byte;
-//      }
-//      else if (dstIndex_ == end) {
-//        packet_.checkMSB = byte;
-//      }
-//      else if (dstIndex_ == end + 1) {
-//        state_ = Idle; //  finished packet
-
-//        packet_.checkLSB = byte;
-
-//        //  check checksum
-//        const uint16_t sum = packet_.checksum;
-//        packet_.calcChecksum();
-
-//        if (sum != packet_.checksum) {
-//          //  invalid, go back to waiting for a marker in the stream
-//          std::cout << "Warning: Dropped packet with mismatched checksum\n"
-//                    << std::flush;
-//        } else {
-//          //  packet is valid, remove relevant data from queue
-//          for (size_t k = 0; k <= srcIndex_; k++) {
-//            queue_.pop_front();
-//          }
-
-//          //  read a packet
-//          processPacket();
-//          return 1;
-//        }
-//      }
-
-//      dstIndex_++;
-//      srcIndex_++;
-//    }
-//  }
-
   //  no packet
-  return 0;
+  return found;
 }
 
 void Imu::processPacket() {
