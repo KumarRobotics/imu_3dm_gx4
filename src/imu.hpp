@@ -398,6 +398,8 @@ private:
 
   int pollInput(unsigned int to);
 
+  std::size_t handleByte(const uint8_t& byte);
+  
   int handleRead(size_t);
 
   void processPacket();
