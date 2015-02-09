@@ -320,7 +320,8 @@ Imu::Packet::Packet(uint8_t desc)
 std::string Imu::Packet::toString() const {
   std::stringstream ss;
   ss << std::hex;
-  ss << "Sync: " << static_cast<int>(sync) << "\n";
+  ss << "SyncMSB: " << static_cast<int>(syncMSB) << "\n";
+  ss << "SyncLSB: " << static_cast<int>(syncLSB) << "\n";
   ss << "Descriptor: " << static_cast<int>(descriptor) << "\n";
   ss << "Length: " << static_cast<int>(length) << "\n";
   ss << "Payload: ";
@@ -950,6 +951,16 @@ std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
         //  invalid, go back to waiting for a marker in the stream
         std::cout << "Warning: Dropped packet with mismatched checksum\n"
                   << std::flush;
+        std::cout << "Expected " << std::hex << 
+                     static_cast<int>(packet_.checksum) << " but received " <<
+                     static_cast<int>(sum) << std::endl;
+        std::cout << "Packet content:\n" << packet_.toString() << std::endl;
+        std::cout << "Queue content: \n";
+        for (const uint8_t& q : queue_) {
+          std::cout << static_cast<int>(q) << " ";
+        }
+        std::cout << "\n" << std::flush;
+        exit(10);
         return 1;
       } else {
         //  successfully read a packet
@@ -968,9 +979,14 @@ std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
 //  parses packets out of the input buffer
 int Imu::handleRead(size_t bytes_transferred) {
   //  read data into queue
+  std::stringstream ss;
+  ss << "Handling read : " << std::hex;
   for (size_t i = 0; i < bytes_transferred; i++) {
     queue_.push_back(buffer_[i]);
+    ss << static_cast<int>(buffer_[i]) << " ";
   }
+  ss << std::endl;
+  std::cout << ss.str() << std::flush;
   
   bool found = false;
   while (srcIndex_ < queue_.size() && !found) {
