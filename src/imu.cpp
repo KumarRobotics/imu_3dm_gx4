@@ -960,7 +960,6 @@ std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
           std::cout << static_cast<int>(q) << " ";
         }
         std::cout << "\n" << std::flush;
-        exit(10);
         return 1;
       } else {
         //  successfully read a packet
