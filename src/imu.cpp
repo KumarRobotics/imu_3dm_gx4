@@ -1152,10 +1152,8 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
   const auto tend = tstart + std::chrono::milliseconds(to);
 
   while (std::chrono::high_resolution_clock::now() <= tend) {
-    const auto teststart = std::chrono::high_resolution_clock::now();
-    const auto resp = pollInput(1);
-    const std::chrono::duration<float> diff = std::chrono::high_resolution_clock::now() - teststart;
-    std::cout << "pollInput blocked for " << diff.count() << " seconds\n" << std::flush;
+    const int resp = pollInput(1);
+    std::cout << "pollInput: " << resp << std::endl;
     if (resp > 0) {
       //  check if this is an ack
       const int ack = packet_.ackErrorCodeFor(command);
@@ -1165,15 +1163,17 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
       } else if (ack > 0) {
         throw command_error(command, ack);
       } else {
+        std::cout << "Not interested in this [N]ACK!\n";
         //  this ack was not for us, keep spinning until timeout
       }
     } else if (resp < 0) {
       throw io_error(strerror(errno));
     } else {
+      std::cout << "Poll interrupted!\n";
       //  resp == 0 keep reading until timeout
     }
   }
-
+  std::cout << "Timed out!\n" << std::flush;
   //  timed out
   throw timeout_error(false, to);  
 }
