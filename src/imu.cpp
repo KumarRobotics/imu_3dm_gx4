@@ -1169,7 +1169,7 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
     } else if (resp < 0) {
       throw io_error(strerror(errno));
     } else {
-      std::cout << "Poll interrupted!\n";
+      //std::cout << "Poll interrupted!\n";
       //  resp == 0 keep reading until timeout
     }
   }
