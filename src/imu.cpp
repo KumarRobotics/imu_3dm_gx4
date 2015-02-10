@@ -1153,7 +1153,6 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
 
   while (std::chrono::high_resolution_clock::now() <= tend) {
     const int resp = pollInput(1);
-    std::cout << "pollInput: " << resp << std::endl;
     if (resp > 0) {
       //  check if this is an ack
       const int ack = packet_.ackErrorCodeFor(command);
@@ -1164,6 +1163,7 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
         throw command_error(command, ack);
       } else {
         std::cout << "Not interested in this [N]ACK!\n";
+        std::cout << packet_.toString() << "\n";
         //  this ack was not for us, keep spinning until timeout
       }
     } else if (resp < 0) {
@@ -1179,6 +1179,8 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
 }
 
 void Imu::sendCommand(const Packet &p) {
+  std::cout << "Sending command:\n";
+  std::cout << p.toString() << std::endl;
   sendPacket(p, rwTimeout_);
   receiveResponse(p, rwTimeout_);
 }
