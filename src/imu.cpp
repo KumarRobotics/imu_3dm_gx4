@@ -464,7 +464,7 @@ void Imu::connect() {
 void Imu::disconnect() {
   if (fd_ > 0) {
     //  send the idle command first
-    idle();
+    idle(false);  //  we don't care about reply here
     close(fd_);
   }
   fd_ = 0;
@@ -545,22 +545,39 @@ void Imu::selectBaudRate(unsigned int baud) {
 
   size_t i;
   bool foundRate = false;
-
   for (i = 0; i < num_rates; i++) {
+    //if (verbose_){
+      std::cout << "Switching to baud rate " << rates[i] << std::endl;
+    //}
     if (!termiosBaudRate(rates[i])) {
       throw io_error(strerror(errno));
     }
+    
+    //if (verbose_) {
+      std::cout << "Switched baud rate to " << rates[i] << std::endl;
+      std::cout << "Sending a ping packet.\n" << std::flush;
+    //}
 
     //  send ping and wait for first response
     sendPacket(pp, 100);
     try {
       receiveResponse(pp, 500);
     } catch (timeout_error&) {
-       continue;
+      //if (verbose_) {
+        std::cout << "Timed out waiting for ping response.\n" << std::flush;
+      //}
+      continue;
     } catch (command_error&) {
+      //if (verbose_) {
+        std::cout << "IMU returned error code for ping.\n" << std::flush;
+      //}
       continue;
     } //  do not catch io_error
 
+    //if (verbose_) {
+      std::cout << "Found correct baudrate.\n" << std::flush;
+    //}
+    
     //  no error in receiveResponse, this is correct baud rate
     foundRate = true;
     break;
@@ -583,6 +600,10 @@ void Imu::selectBaudRate(unsigned int baud) {
   comm.calcChecksum();
 
   try {
+    //if (verbose_) {
+      std::cout << "Instructing device to change to " << baud << std::endl
+                << std::flush;
+    //}
     sendCommand(comm);
   } catch (std::exception& e) {
     std::stringstream ss;
@@ -616,14 +637,14 @@ void Imu::ping() {
   sendCommand(p);
 }
 
-void Imu::idle() {
+void Imu::idle(bool needReply) {
   Imu::Packet p(COMMAND_CLASS_BASE);  //  was 0x02
   PacketEncoder encoder(p);
   encoder.beginField(DEVICE_IDLE);
   encoder.endField();
   p.calcChecksum();
   assert(p.checkMSB == 0xE1 && p.checkLSB == 0xC7);
-  sendCommand(p);
+  sendCommand(p, needReply);
 }
 
 void Imu::resume() {
@@ -1167,8 +1188,10 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
       } else if (ack > 0) {
         throw command_error(command, ack);
       } else {
-        std::cout << "Not interested in this [N]ACK!\n";
-        std::cout << packet_.toString() << "\n";
+        if (verbose_) {
+          std::cout << "Not interested in this [N]ACK!\n";
+          std::cout << packet_.toString() << "\n";
+        }
         //  this ack was not for us, keep spinning until timeout
       }
     } else if (resp < 0) {
@@ -1180,17 +1203,19 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
   }
   if (verbose_) {
     std::cout << "Timed out reading response to:\n";
-    std::cout << command.toString() << std::endl;
+    std::cout << command.toString() << std::endl << std::flush;
   }
   //  timed out
   throw timeout_error(false, to);  
 }
 
-void Imu::sendCommand(const Packet &p) {
+void Imu::sendCommand(const Packet &p, bool readReply) {
   if (verbose_) {
     std::cout << "Sending command:\n";
     std::cout << p.toString() << std::endl;
   }
   sendPacket(p, rwTimeout_);
-  receiveResponse(p, rwTimeout_);
+  if (readReply) {
+    receiveResponse(p, rwTimeout_);
+  }
 }

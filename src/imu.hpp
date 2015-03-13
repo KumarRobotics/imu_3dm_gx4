@@ -280,19 +280,17 @@ public:
 
   /**
    * @brief ping Ping the device.
-   * @param to Timeout in milliseconds.
    */
   void ping();
 
   /**
    * @brief idle Switch the device to idle mode.
-   * @param to Timeout in milliseconds.
+   * @param needReply, if true we wait for reply.
    */
-  void idle();
+  void idle(bool needReply = true);
 
   /**
    * @brief resume Resume the device.
-   * @param to Timeout in milliseconds.
    */
   void resume();
 
@@ -411,7 +409,7 @@ private:
 
   void receiveResponse(const Packet &command, unsigned int to);
 
-  void sendCommand(const Packet &p);
+  void sendCommand(const Packet &p, bool readReply = true);
 
   bool termiosBaudRate(unsigned int baud);
 
