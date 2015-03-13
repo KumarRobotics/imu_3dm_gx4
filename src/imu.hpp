@@ -237,8 +237,9 @@ public:
   /**
    * @brief Imu Constructor
    * @param device Path to the device in /dev, eg. /dev/ttyACM0
+   * @param verbose If true, packet reads are logged to console.
    */
-  Imu(const std::string &device);
+  Imu(const std::string &device, bool verbose);
 
   /**
    * @brief ~Imu Destructor
@@ -279,19 +280,17 @@ public:
 
   /**
    * @brief ping Ping the device.
-   * @param to Timeout in milliseconds.
    */
   void ping();
 
   /**
    * @brief idle Switch the device to idle mode.
-   * @param to Timeout in milliseconds.
+   * @param needReply, if true we wait for reply.
    */
-  void idle();
+  void idle(bool needReply = true);
 
   /**
    * @brief resume Resume the device.
-   * @param to Timeout in milliseconds.
    */
   void resume();
 
@@ -398,6 +397,8 @@ private:
 
   int pollInput(unsigned int to);
 
+  std::size_t handleByte(const uint8_t& byte, bool& found);
+  
   int handleRead(size_t);
 
   void processPacket();
@@ -408,11 +409,12 @@ private:
 
   void receiveResponse(const Packet &command, unsigned int to);
 
-  void sendCommand(const Packet &p);
+  void sendCommand(const Packet &p, bool readReply = true);
 
   bool termiosBaudRate(unsigned int baud);
 
   const std::string device_;
+  const bool verbose_;
   int fd_;
   unsigned int rwTimeout_;
 

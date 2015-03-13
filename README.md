@@ -8,11 +8,14 @@ This package works on Ubuntu 12.04 and 14.04.
 
 ## Version History
 
+* **0.0.4**:
+  - Fixed issue where packets would be dropped if the header checksum was broken up
+  into multiple packets.
+  - Added `verbose` option.
 * **0.0.3**:
   - Replaced `decimation` options with `rate` options. Decimation is automatically calculated.
   - Added a file for use with Kalibr.
   - Added a udev rule to configure permissions.
-
 * **0.0.2**:
   - Units of acceleration are now m/s^2, in agreement with ROS convention.
   - Cleaned up code base, replaced error codes with exceptions.
@@ -31,6 +34,7 @@ The `imu_3dm_gx4` node supports the following base options:
 * `baudrate`: Baudrate to employ with serial communication. Defaults to `115200`.
 * `frame_id`: Frame to use in headers.
 * `imu_rate`: IMU rate to use, in Hz. Default is 100.
+* `verbose`: If true, packet reads and mismatched checksums will be logged.
 
 The following additional options are present for leveraging the 3DM's onboard estimation filter:
 * `enable_filter`: If true, the IMU estimation filter is enabled. Default is false.
