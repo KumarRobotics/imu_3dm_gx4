@@ -546,37 +546,37 @@ void Imu::selectBaudRate(unsigned int baud) {
   size_t i;
   bool foundRate = false;
   for (i = 0; i < num_rates; i++) {
-    //if (verbose_){
+    if (verbose_){
       std::cout << "Switching to baud rate " << rates[i] << std::endl;
-    //}
+    }
     if (!termiosBaudRate(rates[i])) {
       throw io_error(strerror(errno));
     }
     
-    //if (verbose_) {
+    if (verbose_) {
       std::cout << "Switched baud rate to " << rates[i] << std::endl;
       std::cout << "Sending a ping packet.\n" << std::flush;
-    //}
+    }
 
     //  send ping and wait for first response
     sendPacket(pp, 100);
     try {
       receiveResponse(pp, 500);
     } catch (timeout_error&) {
-      //if (verbose_) {
+      if (verbose_) {
         std::cout << "Timed out waiting for ping response.\n" << std::flush;
-      //}
+      }
       continue;
     } catch (command_error&) {
-      //if (verbose_) {
+      if (verbose_) {
         std::cout << "IMU returned error code for ping.\n" << std::flush;
-      //}
+      }
       continue;
     } //  do not catch io_error
 
-    //if (verbose_) {
+    if (verbose_) {
       std::cout << "Found correct baudrate.\n" << std::flush;
-    //}
+    }
     
     //  no error in receiveResponse, this is correct baud rate
     foundRate = true;
@@ -600,10 +600,10 @@ void Imu::selectBaudRate(unsigned int baud) {
   comm.calcChecksum();
 
   try {
-    //if (verbose_) {
+    if (verbose_) {
       std::cout << "Instructing device to change to " << baud << std::endl
                 << std::flush;
-    //}
+    }
     sendCommand(comm);
   } catch (std::exception& e) {
     std::stringstream ss;
@@ -1002,14 +1002,14 @@ std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
 //  parses packets out of the input buffer
 int Imu::handleRead(size_t bytes_transferred) {
   //  read data into queue
+  std::stringstream ss;
+  ss << "Handling read : " << std::hex;
+  for (size_t i = 0; i < bytes_transferred; i++) {
+    queue_.push_back(buffer_[i]);
+    ss << static_cast<int>(buffer_[i]) << " ";
+  }
+  ss << std::endl;
   if (verbose_) {
-    std::stringstream ss;
-    ss << "Handling read : " << std::hex;
-    for (size_t i = 0; i < bytes_transferred; i++) {
-      queue_.push_back(buffer_[i]);
-      ss << static_cast<int>(buffer_[i]) << " ";
-    }
-    ss << std::endl;
     std::cout << ss.str() << std::flush;
   }
   
@@ -1197,7 +1197,6 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
     } else if (resp < 0) {
       throw io_error(strerror(errno));
     } else {
-      //std::cout << "Poll interrupted!\n";
       //  resp == 0 keep reading until timeout
     }
   }

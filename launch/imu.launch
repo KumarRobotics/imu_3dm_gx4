@@ -16,8 +16,8 @@
     <arg name="baudrate" default="115200"/>
 
     <!-- Data rate in Hz -->
-    <arg name="imu_rate" default="1"/>
-    <arg name="filter_rate" default="1"/>
+    <arg name="imu_rate" default="100"/>
+    <arg name="filter_rate" default="100"/>
 
     <!-- Enable/Disable the filter -->
     <arg name="enable_filter" default="false"/>
