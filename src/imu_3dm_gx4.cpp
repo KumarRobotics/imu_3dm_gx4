@@ -161,6 +161,7 @@ int main(int argc, char **argv) {
   bool enableFilter;
   bool enableMagUpdate, enableAccelUpdate;
   int requestedImuRate, requestedFilterRate;
+  bool verbose;
   
   //  load parameters from launch file
   nh.param<std::string>("device", device, "/dev/ttyACM0");
@@ -171,6 +172,7 @@ int main(int argc, char **argv) {
   nh.param<bool>("enable_filter", enableFilter, false);
   nh.param<bool>("enable_mag_update", enableMagUpdate, false);
   nh.param<bool>("enable_accel_update", enableAccelUpdate, true);
+  nh.param<bool>("verbose", verbose, false);
   
   if (requestedFilterRate < 0 || requestedImuRate < 0) {
     ROS_ERROR("imu_rate and filter_rate must be > 0");
@@ -186,7 +188,7 @@ int main(int argc, char **argv) {
   }
 
   //  new instance of the IMU
-  Imu imu(device);
+  Imu imu(device, verbose);
   try {
     imu.connect();
 

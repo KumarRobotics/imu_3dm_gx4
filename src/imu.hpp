@@ -237,8 +237,9 @@ public:
   /**
    * @brief Imu Constructor
    * @param device Path to the device in /dev, eg. /dev/ttyACM0
+   * @param verbose If true, packet reads are logged to console.
    */
-  Imu(const std::string &device);
+  Imu(const std::string &device, bool verbose);
 
   /**
    * @brief ~Imu Destructor
@@ -415,6 +416,7 @@ private:
   bool termiosBaudRate(unsigned int baud);
 
   const std::string device_;
+  const bool verbose_;
   int fd_;
   unsigned int rwTimeout_;
 

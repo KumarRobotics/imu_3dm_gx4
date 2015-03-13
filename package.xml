@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>imu_3dm_gx4</name>
-  <version>0.0.3</version>
+  <version>0.0.4</version>
   <description>Driver for Microstrain 3DM-GX4-25 IMU</description>
 
   <maintainer email="gcross.code@icloud.com">gcross</maintainer>

@@ -391,7 +391,8 @@ std::string Imu::timeout_error::generateString(bool write,
   return ss.str();
 }
 
-Imu::Imu(const std::string &device) : device_(device), fd_(0), 
+Imu::Imu(const std::string &device, bool verbose) : device_(device), verbose_(verbose),
+  fd_(0), 
   rwTimeout_(kDefaultTimeout),
   srcIndex_(0), dstIndex_(0),
   state_(Idle) {
@@ -951,15 +952,17 @@ std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
         //  invalid, go back to waiting for a marker in the stream
         std::cout << "Warning: Dropped packet with mismatched checksum\n"
                   << std::flush;
-        std::cout << "Expected " << std::hex << 
-                     static_cast<int>(packet_.checksum) << " but received " <<
-                     static_cast<int>(sum) << std::endl;
-        std::cout << "Packet content:\n" << packet_.toString() << std::endl;
-        std::cout << "Queue content: \n";
-        for (const uint8_t& q : queue_) {
-          std::cout << static_cast<int>(q) << " ";
+        if (verbose_) {
+          std::cout << "Expected " << std::hex << 
+                       static_cast<int>(packet_.checksum) << " but received " <<
+                       static_cast<int>(sum) << std::endl;
+          std::cout << "Packet content:\n" << packet_.toString() << std::endl;
+          std::cout << "Queue content: \n";
+          for (const uint8_t& q : queue_) {
+            std::cout << static_cast<int>(q) << " ";
+          }
+          std::cout << "\n" << std::flush;
         }
-        std::cout << "\n" << std::flush;
         return 1;
       } else {
         //  successfully read a packet
@@ -978,14 +981,16 @@ std::size_t Imu::handleByte(const uint8_t& byte, bool& found) {
 //  parses packets out of the input buffer
 int Imu::handleRead(size_t bytes_transferred) {
   //  read data into queue
-  std::stringstream ss;
-  ss << "Handling read : " << std::hex;
-  for (size_t i = 0; i < bytes_transferred; i++) {
-    queue_.push_back(buffer_[i]);
-    ss << static_cast<int>(buffer_[i]) << " ";
+  if (verbose_) {
+    std::stringstream ss;
+    ss << "Handling read : " << std::hex;
+    for (size_t i = 0; i < bytes_transferred; i++) {
+      queue_.push_back(buffer_[i]);
+      ss << static_cast<int>(buffer_[i]) << " ";
+    }
+    ss << std::endl;
+    std::cout << ss.str() << std::flush;
   }
-  ss << std::endl;
-  std::cout << ss.str() << std::flush;
   
   bool found = false;
   while (srcIndex_ < queue_.size() && !found) {
@@ -1173,14 +1178,19 @@ void Imu::receiveResponse(const Packet &command, unsigned int to) {
       //  resp == 0 keep reading until timeout
     }
   }
-  std::cout << "Timed out!\n" << std::flush;
+  if (verbose_) {
+    std::cout << "Timed out reading response to:\n";
+    std::cout << command.toString() << std::endl;
+  }
   //  timed out
   throw timeout_error(false, to);  
 }
 
 void Imu::sendCommand(const Packet &p) {
-  std::cout << "Sending command:\n";
-  std::cout << p.toString() << std::endl;
+  if (verbose_) {
+    std::cout << "Sending command:\n";
+    std::cout << p.toString() << std::endl;
+  }
   sendPacket(p, rwTimeout_);
   receiveResponse(p, rwTimeout_);
 }

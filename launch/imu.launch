@@ -6,6 +6,9 @@
     <!-- IMU Settings -->
     <arg name="device" default="/dev/ttyACM0" />
 
+    <!-- Verbose logging -->
+    <arg name="verbose" default="false"/>
+
     <!-- Frame ID for messages -->
     <arg name="frame_id" default="$(arg imu)"/>
 
@@ -25,6 +28,7 @@
 
     <node pkg="imu_3dm_gx4" name="$(arg imu)" type="imu_3dm_gx4" output="$(arg output)">
         <param name="device" type="string" value="$(arg device)" />
+        <param name="verbose" type="bool" value="$(arg verbose)"/>
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)" />
