@@ -16,7 +16,6 @@ This package works on Ubuntu 12.04 and 14.04.
   - Replaced `decimation` options with `rate` options. Decimation is automatically calculated.
   - Added a file for use with Kalibr.
   - Added a udev rule to configure permissions.
-
 * **0.0.2**:
   - Units of acceleration are now m/s^2, in agreement with ROS convention.
   - Cleaned up code base, replaced error codes with exceptions.
