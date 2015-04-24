@@ -443,6 +443,7 @@ void Imu::connect() {
       CREAD |
       CLOCAL; //  enable receiving of data, forbid control lines (CLOCAL)
   toptions.c_iflag &= ~(IXON | IXOFF | IXANY); //  no software flow control
+  toptions.c_iflag &= ~(INLCR|ICRNL); //  disable NL->CR and CR->NL
 
   //  disable the following
   //  ICANON = input is read on a per-line basis
@@ -450,6 +451,7 @@ void Imu::connect() {
   //  ISIG = interrupt signals
   toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
   toptions.c_oflag &= ~OPOST; //  disable pre-processing of input data
+  toptions.c_oflag &= ~(ONLCR|OCRNL); //  disable NL->CR and CR->NL
 
   toptions.c_cc[VMIN] = 0;  //  no minimum number of bytes when reading
   toptions.c_cc[VTIME] = 0; //  no time blocking
