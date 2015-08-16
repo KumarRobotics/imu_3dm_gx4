@@ -17,6 +17,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <stdexcept>
 
 extern "C" {
 #include <fcntl.h>
@@ -240,8 +241,10 @@ public:
   
   template <typename T>
   void extract(size_t count, T* output) {
-    const size_t sz = sizeof(T)*count;
-    assert(fs_+pos_+sz <= sizeof(p_.payload));
+    #ifndef NDEBUG
+      const size_t sz = sizeof(T)*count;
+      assert(fs_+pos_+sz <= sizeof(p_.payload));
+    #endif
     decode(&p_.payload[fs_+pos_], count, output);
     pos_ += sizeof(T) * count;
   }
@@ -499,7 +502,7 @@ bool Imu::termiosBaudRate(unsigned int baud) {
     speed = B921600;
     break;
   default:
-    assert(false);
+    throw std::invalid_argument("Invalid Baud Rate" );
   }
 
   //  modify only the baud rate
@@ -670,8 +673,10 @@ void Imu::getDeviceInfo(Imu::Info &info) {
   sendCommand(p);
   {
     PacketDecoder decoder(packet_);
-    const bool advance = decoder.advanceTo(FIELD_DEVICE_INFO);
-    assert(advance);
+    #ifndef NDEBUG
+      const bool advance = decoder.advanceTo(FIELD_DEVICE_INFO);
+      assert(advance);
+    #endif
     char buffer[16];
     
     decoder.extract(1, &info.firmwareVersion);
@@ -699,8 +704,10 @@ void Imu::getIMUDataBaseRate(uint16_t &baseRate) {
   sendCommand(p);
   {
     PacketDecoder decoder(packet_);
-    const bool advance = decoder.advanceTo(FIELD_IMU_BASERATE);
-    assert(advance);
+    #ifndef NDEBUG
+      const bool advance = decoder.advanceTo(FIELD_IMU_BASERATE);
+      assert(advance);
+    #endif
     decoder.extract(1, &baseRate);
   }
 }
@@ -728,8 +735,10 @@ void Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
   sendCommand(p);
   {
     PacketDecoder decoder(packet_);
-    const bool advance = decoder.advanceTo(FIELD_STATUS_REPORT);
-    assert(advance);
+    #ifndef NDEBUG
+      const bool advance = decoder.advanceTo(FIELD_STATUS_REPORT);
+      assert(advance);
+    #endif
 
     decoder.extract(1, &fields.modelNumber);
     decoder.extract(1, &fields.selector);
