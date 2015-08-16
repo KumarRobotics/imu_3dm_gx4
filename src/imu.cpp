@@ -676,6 +676,8 @@ void Imu::getDeviceInfo(Imu::Info &info) {
     #ifndef NDEBUG
       const bool advance = decoder.advanceTo(FIELD_DEVICE_INFO);
       assert(advance);
+    #else
+     decoder.advanceTo(FIELD_DEVICE_INFO);
     #endif
     char buffer[16];
     
@@ -707,6 +709,8 @@ void Imu::getIMUDataBaseRate(uint16_t &baseRate) {
     #ifndef NDEBUG
       const bool advance = decoder.advanceTo(FIELD_IMU_BASERATE);
       assert(advance);
+    #else
+      decoder.advanceTo(FIELD_IMU_BASERATE);
     #endif
     decoder.extract(1, &baseRate);
   }
@@ -738,6 +742,8 @@ void Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
     #ifndef NDEBUG
       const bool advance = decoder.advanceTo(FIELD_STATUS_REPORT);
       assert(advance);
+    #else
+      decoder.advanceTo(FIELD_STATUS_REPORT);
     #endif
 
     decoder.extract(1, &fields.modelNumber);
