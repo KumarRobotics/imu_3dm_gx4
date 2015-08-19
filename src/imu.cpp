@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <boost/assert.hpp>
 
 extern "C" {
 #include <fcntl.h>
@@ -236,16 +237,13 @@ public:
   
   void advance() {
     fs_ += p_.payload[fs_];
-    pos_=2; //  skip length and descriptor
+    pos_ = 2;  //  skip length and descriptor
   }
-  
+
   template <typename T>
   void extract(size_t count, T* output) {
-    #ifndef NDEBUG
-      const size_t sz = sizeof(T)*count;
-      assert(fs_+pos_+sz <= sizeof(p_.payload));
-    #endif
-    decode(&p_.payload[fs_+pos_], count, output);
+    BOOST_VERIFY(fs_ + pos_ + sizeof(T) * count <= sizeof(p_.payload));
+    decode(&p_.payload[fs_ + pos_], count, output);
     pos_ += sizeof(T) * count;
   }
 
@@ -255,24 +253,24 @@ private:
   uint8_t pos_;
 };
 
-bool Imu::Packet::isIMUData() const { 
+bool Imu::Packet::isIMUData() const {
   return descriptor == DATA_CLASS_IMU;
 }
 
-bool Imu::Packet::isFilterData() const { 
-  return descriptor == DATA_CLASS_FILTER; 
+bool Imu::Packet::isFilterData() const {
+  return descriptor == DATA_CLASS_FILTER;
 }
 
 int Imu::Packet::ackErrorCodeFor(const Packet &command) const {
   PacketDecoder decoder(*this);
   const uint8_t sentDesc = command.descriptor;
   const uint8_t sentField = command.payload[1];
-  
+
   if (sentDesc != this->descriptor) {
     //  not for this packet
     return -1;
   }
-  
+
   //  look for a matching ACK
   for (int d; (d = decoder.fieldDescriptor()) > 0; decoder.advance()) {
     if (decoder.fieldIsAckOrNack()) {
@@ -673,12 +671,7 @@ void Imu::getDeviceInfo(Imu::Info &info) {
   sendCommand(p);
   {
     PacketDecoder decoder(packet_);
-    #ifndef NDEBUG
-      const bool advance = decoder.advanceTo(FIELD_DEVICE_INFO);
-      assert(advance);
-    #else
-     decoder.advanceTo(FIELD_DEVICE_INFO);
-    #endif
+    BOOST_VERIFY(decoder.advanceTo(FIELD_DEVICE_INFO));
     char buffer[16];
     
     decoder.extract(1, &info.firmwareVersion);
@@ -706,12 +699,7 @@ void Imu::getIMUDataBaseRate(uint16_t &baseRate) {
   sendCommand(p);
   {
     PacketDecoder decoder(packet_);
-    #ifndef NDEBUG
-      const bool advance = decoder.advanceTo(FIELD_IMU_BASERATE);
-      assert(advance);
-    #else
-      decoder.advanceTo(FIELD_IMU_BASERATE);
-    #endif
+    BOOST_VERIFY(decoder.advanceTo(FIELD_IMU_BASERATE));
     decoder.extract(1, &baseRate);
   }
 }
@@ -739,12 +727,7 @@ void Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
   sendCommand(p);
   {
     PacketDecoder decoder(packet_);
-    #ifndef NDEBUG
-      const bool advance = decoder.advanceTo(FIELD_STATUS_REPORT);
-      assert(advance);
-    #else
-      decoder.advanceTo(FIELD_STATUS_REPORT);
-    #endif
+    BOOST_VERIFY(decoder.advanceTo(FIELD_STATUS_REPORT));
 
     decoder.extract(1, &fields.modelNumber);
     decoder.extract(1, &fields.selector);
