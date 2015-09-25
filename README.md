@@ -61,7 +61,7 @@ Where the base frequency is 1kHz for the GX4. Since decimation values are intege
 
 On launch, the node will configure the IMU according to the parameters and then enable streaming node. At least three topics are published:
 
-* `/imu_3dm_gx4/imu`: An instance of `sensor_msgs/Imu`. Orientation quaternion not provided in this message.
+* `/imu_3dm_gx4/imu`: An instance of `sensor_msgs/Imu`. Orientation quaternion not provided in this message since is already part of the filter message.
 * `/imu_3dm_gx4/magnetic_field`: An instance of `sensor_msgs/MagneticField`.
 * `/imu_3dm_gx4/pressure`: An instance of `sensor_msgs/FluidPressure`.
 
