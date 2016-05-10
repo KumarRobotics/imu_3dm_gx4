@@ -1,6 +1,6 @@
 # imu_3dm_gx4
 
-![Picture of IMU](http://www.microstrain.com/sites/default/files/styles/product_image_main/public/products/GX4-25_ProductImage1.00.jpg?itok=gkOa-CBI)
+![Picture of IMU](https://www.microstrain.com/sites/default/files/styles/larger__550x550_/public/gx4-25.jpg?itok=vB8GWQpI)
 
 The `imu_3dm_gx4` package provides support for the [Lord Corporation](http://www.microstrain.com) Microstrain [3DM-GX4-25](http://www.microstrain.com/inertial/3dm-gx4-25) series IMU. The package employs the MIP packet format, so it could conceivably be adapted to support other versions of Microstrain products with relatively little effort. At present, the 15 and 45 series AHRS systems are not supported.
 
