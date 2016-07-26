@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
   //  load parameters from launch file
   nh.param<std::string>("device", device, "/dev/ttyACM0");
   nh.param<int>("baudrate", baudrate, 115200);
-  nh.param<std::string>("frameId", frameId, std::string("imu"));
+  nh.param<std::string>("frame_id", frameId, std::string("imu"));
   nh.param<int>("imu_rate", requestedImuRate, 100);
   nh.param<int>("filter_rate", requestedFilterRate, 100);
   nh.param<bool>("enable_filter", enableFilter, false);
