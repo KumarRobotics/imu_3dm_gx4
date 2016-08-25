@@ -171,7 +171,7 @@ public:
     float accel[3]; /**< Acceleration, units of G */
     float gyro[3];  /**< Angular rates, units of rad/s */
     float mag[3];   /**< Magnetic field, units of gauss */
-    float pressure; /**< Pressure, units of gauss */
+    float pressure; /**< Pressure, units of pascal */
 
     IMUData() : fields(0) {}
   };
