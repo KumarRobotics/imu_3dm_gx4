@@ -79,7 +79,7 @@ public:
 
     /**
      * @brief Extract the ACK code from this packet.
-     * @param commmand Command packet to which this ACK should correspond.
+     * @param command Command packet to which this ACK should correspond.
      *
      * @return -1 if the packets do not correspond or this is not an ACK. The
      * error code is returned otherwise.
