@@ -19,6 +19,9 @@
     <arg name="imu_rate" default="100"/>
     <arg name="filter_rate" default="100"/>
 
+    <!-- Enable/Disable the magnetometer -->
+    <arg name="enable_magnetometer" default="true"/>
+
     <!-- Enable/Disable the filter -->
     <arg name="enable_filter" default="false"/>
 
@@ -33,6 +36,7 @@
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)" />
         <param name="filter_rate" type="int" value="$(arg filter_rate)"/>
+        <param name="enable_magnetometer" type="bool" value="$(arg enable_magnetometer)"/>
         <param name="enable_filter" type="bool" value="$(arg enable_filter)"/>
         <param name="enable_accel_update" type="bool" value="$(arg enable_accel_update)"/>
         <param name="enable_mag_update" type="bool" value="$(arg enable_mag_update)"/>

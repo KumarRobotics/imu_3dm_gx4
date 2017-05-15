@@ -117,9 +117,15 @@ public:
     std::string deviceOptions; /// Device options (range of the sensor)
 
     /**
-     * @brief Conver to map of human readable strings.
+     * @brief Convert to map of human readable strings.
      */
     std::map<std::string, std::string> toMap() const;
+
+    /**
+     * @brief Generate the integer model number.
+     * @return The IMU model number in integer format as expected by commands
+     */
+    uint16_t getModelNumber() const;
   };
 
   /**
@@ -315,8 +321,10 @@ public:
   /**
    * @brief getDiagnosticInfo Get diagnostic information from the IMU.
    * @param fields On success, a filled out DiagnosticFields.
+   * @param info IMU info structure with, among other things, the model number
    */
-  void getDiagnosticInfo(Imu::DiagnosticFields &fields);
+  void getDiagnosticInfo(Imu::DiagnosticFields &fields,
+                         const Imu::Info &info);
 
   /**
    * @brief setIMUDataRate Set imu data rate for different sources.

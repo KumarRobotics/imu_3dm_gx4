@@ -345,6 +345,19 @@ std::map <std::string, std::string> Imu::Info::toMap() const {
   return map;
 }
 
+uint16_t Imu::Info::getModelNumber() const {
+  // Simply convert the first contiguous group of numbers into an int
+  int modelInt;
+  try {
+    modelInt = std::stoi(modelNumber);
+  }
+  catch (const std::invalid_argument &ex) {
+    // If cannot convert, default to the -25 (6324)
+    modelInt = 6324;
+  }
+  return static_cast<uint16_t>(modelInt);
+}
+
 std::map <std::string, unsigned int> Imu::DiagnosticFields::toMap() const {
   std::map<std::string, unsigned int> map;
   map["Model number"] = modelNumber;
@@ -715,11 +728,12 @@ void Imu::getFilterDataBaseRate(uint16_t &baseRate) {
   decode(&packet_.payload[6], 1, &baseRate);
 }
 
-void Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields) {
+void Imu::getDiagnosticInfo(Imu::DiagnosticFields &fields,
+                            const Imu::Info &info) {
   Packet p(COMMAND_CLASS_3DM);
   PacketEncoder encoder(p);
   encoder.beginField(COMMAND_DEVICE_STATUS);
-  encoder.append(static_cast<uint16_t>(6234));  //  device model number
+  encoder.append(info.getModelNumber());  //  device model number
   encoder.append(u8(0x02)); //  diagnostic mode
   encoder.endField();
   p.calcChecksum();
