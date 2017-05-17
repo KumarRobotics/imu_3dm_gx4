@@ -1,10 +1,12 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>imu_3dm_gx4</name>
-  <version>0.0.4</version>
+  <version>0.0.5</version>
   <description>Driver for Microstrain 3DM-GX4-25 IMU</description>
 
   <maintainer email="gcross.code@icloud.com">gcross</maintainer>
+  <maintainer email="kartikmohta@gmail.com">Kartik Mohta</maintainer>
+
   <author>Gareth Cross</author>
   <license>Apache 2</license>
 

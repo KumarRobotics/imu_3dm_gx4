@@ -1,13 +1,17 @@
 # imu_3dm_gx4
 
+[![Build Status](https://travis-ci.org/KumarRobotics/imu_3dm_gx4.svg?branch=master)](https://travis-ci.org/KumarRobotics/imu_3dm_gx4)
+
 ![Picture of IMU](https://www.microstrain.com/sites/default/files/styles/larger__550x550_/public/gx4-25.jpg?itok=vB8GWQpI)
 
-The `imu_3dm_gx4` package provides support for the [Lord Corporation](http://www.microstrain.com) Microstrain [3DM-GX4-25](http://www.microstrain.com/inertial/3dm-gx4-25) series IMU. The package employs the MIP packet format, so it could conceivably be adapted to support other versions of Microstrain products with relatively little effort. At present, the 15 and 45 series AHRS systems are not supported.
+The `imu_3dm_gx4` package provides support for the [Lord Corporation](http://www.microstrain.com) Microstrain [3DM-GX4](http://www.microstrain.com/inertial) series IMU. The package employs the MIP packet format, so it could conceivably be adapted to support other versions of Microstrain products with relatively little effort. At present, the 45 series is not supported.
 
-This package works on Ubuntu 12.04 and 14.04.
+This package works on Ubuntu 12.04, 14.04 and 16.04.
 
 ## Version History
 
+* **0.0.5**:
+  - Added support for the -15 series (Aaron Hoy)
 * **0.0.4**:
   - Fixed issue where packets would be dropped if the header checksum was broken up
   into multiple packets.
