@@ -20,6 +20,7 @@
 #include <vector>
 #include <bitset>
 #include <map>
+#include <functional>
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ //  will fail outside of gcc/clang
 #define HOST_LITTLE_ENDIAN
