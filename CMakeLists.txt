@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   geometry_msgs
   sensor_msgs
+  message_filters
 )
 
 add_message_files(DIRECTORY msg)
@@ -23,6 +24,10 @@ add_definitions("-std=c++0x -Wall -Werror")
 add_executable(${PROJECT_NAME} src/imu_3dm_gx4.cpp src/imu.cpp)
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
+)
+
+add_executable(merge_imu_filter src/merge_imu_filter.cpp)
+target_link_libraries(merge_imu_filter  ${catkin_LIBRARIES}
 )
 
 add_dependencies(${PROJECT_NAME}
