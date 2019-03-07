@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="imu_3dm_gx4" name="merge_imu_filter" type="merge_imu_filter"
+    output="screen" ns="imu">
+  </node>
+</launch>

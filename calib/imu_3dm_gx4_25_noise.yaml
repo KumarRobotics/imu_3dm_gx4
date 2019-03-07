@@ -1,0 +1,12 @@
+accelerometer:
+  noise_density: 1.0e-04 # m/s^2/sqrt(Hz)
+  bias_instability: 0.039e-02 # m/s^3/sqrt(Hz)
+  initial_bias_error: 0.0196 # m/s^2
+
+gyroscope:
+  noise_density: 8.73e-05 # rad/s/sqrt(Hz)
+  bias_instability: 4.8e-05 # rad/s^2/sqrt(Hz)
+  initial_bias_error: 0.00087 # rad/s
+
+magnetometer:
+  noise_density: 0.0001 # Gauss/sqrt(Hz)

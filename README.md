@@ -6,7 +6,7 @@
 
 The `imu_3dm_gx4` package provides support for the [Lord Corporation](http://www.microstrain.com) Microstrain [3DM-GX4](http://www.microstrain.com/inertial) series IMU. The package employs the MIP packet format, so it could conceivably be adapted to support other versions of Microstrain products with relatively little effort. At present, the 45 series is not supported.
 
-This package works on Ubuntu 12.04, 14.04 and 16.04.
+This package works on Ubuntu 16.04 and 18.04.
 
 ## Version History
 
@@ -45,6 +45,7 @@ The following additional options are present for leveraging the 3DM's onboard es
 * `filter_rate`: Filter rate to use, in Hz. Default is 100.
 * `enable_mag_update`: If true, the IMU will use the magnetometer to correct the heading angle estimate. Default is false.
 * `enable_accel_update`: If true, the IMU will use the accelerometer to correct
+
 the roll/pitch angle estimates. Default is true.
 
 **In order to launch the node** (streaming IMU data at 100Hz), execute:
