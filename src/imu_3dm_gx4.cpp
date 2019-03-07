@@ -10,6 +10,7 @@
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
+#include <std_msgs/Float64.h>
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <imu_3dm_gx4/FilterOutput.h>
@@ -23,6 +24,7 @@ ros::Publisher pubIMU;
 ros::Publisher pubMag;
 ros::Publisher pubPressure;
 ros::Publisher pubFilter;
+ros::Publisher pubGravity;
 ros::Publisher pubPose;
 std::string frameId;
 std::string fixeFrameId;
@@ -132,7 +134,7 @@ void publishFilter(const Imu::FilterData& data) {
     geometry_msgs::TransformStamped tf_msg;
     tf_msg.header.stamp = output.header.stamp;
     tf_msg.header.frame_id = fixeFrameId;
-    tf_msg.child_frame_id = output.header.frame_id;
+    tf_msg.child_frame_id = output.header.frame_id + "_filter";
     tf_msg.transform.rotation = output.orientation;
     br.sendTransform(tf_msg);
 
@@ -200,10 +202,6 @@ int main(int argc, char** argv) {
   pnh.param<std::string>("frame_id", frameId, "imu");
   pnh.param<std::string>("fixed_frame_id", fixeFrameId, "world");
   pnh.param<double>("gravity", gravity, 0.0);
-  if (gravity <= 0.0) {
-    ROS_ERROR("Must set gravity value");
-    return -1;
-  }
   pnh.param<int>("imu_rate", requestedImuRate, 100);
   pnh.param<int>("filter_rate", requestedFilterRate, 100);
   pnh.param<bool>("enable_magnetometer", enableMagnetometer, true);
@@ -213,6 +211,13 @@ int main(int argc, char** argv) {
   pnh.param<bool>("enable_tf", enableTf, enableFilter);
   pnh.param<bool>("verbose", verbose, false);
 
+  if (gravity <= 0.0) {
+    ROS_ERROR("Must set gravity value");
+    return -1;
+  } else {
+    ROS_INFO("Gravity is set to %f", gravity);
+  }
+
   if (requestedFilterRate < 0 || requestedImuRate < 0) {
     ROS_ERROR("imu_rate and filter_rate must be > 0");
     return -1;
@@ -220,6 +225,12 @@ int main(int argc, char** argv) {
 
   pubIMU = pnh.advertise<sensor_msgs::Imu>("imu", 1);
   pubPressure = pnh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
+  pubGravity = pnh.advertise<std_msgs::Float64>("gravity", 1, true);
+  {
+    std_msgs::Float64 float_msg;
+    float_msg.data = gravity;
+    pubGravity.publish(float_msg);
+  }
 
   if (enableMagnetometer) {
     pubMag = pnh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);

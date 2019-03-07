@@ -4,10 +4,13 @@ project(imu_3dm_gx4)
 set(CMAKE_CXX_STANDARD 11)
 
 find_package(catkin REQUIRED
-             COMPONENTS tf2_ros
+             COMPONENTS 
+
                         roscpp
-                        geometry_msgs
+                        tf2_ros
+                        std_msgs
                         sensor_msgs
+                        geometry_msgs
                         diagnostic_updater
                         message_generation)
 
