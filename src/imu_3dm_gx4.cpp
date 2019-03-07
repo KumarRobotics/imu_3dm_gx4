@@ -17,7 +17,7 @@
 
 using namespace imu_3dm_gx4;
 
-#define kEarthGravity (9.80665)
+double gravity;
 
 ros::Publisher pubIMU;
 ros::Publisher pubMag;
@@ -65,9 +65,9 @@ void publishData(const Imu::IMUData& data) {
   imu.orientation_covariance[0] =
       -1;  //  orientation data is on a separate topic
 
-  imu.linear_acceleration.x = data.accel[0] * kEarthGravity;
-  imu.linear_acceleration.y = data.accel[1] * kEarthGravity;
-  imu.linear_acceleration.z = data.accel[2] * kEarthGravity;
+  imu.linear_acceleration.x = data.accel[0] * gravity;
+  imu.linear_acceleration.y = data.accel[1] * gravity;
+  imu.linear_acceleration.z = data.accel[2] * gravity;
   imu.angular_velocity.x = data.gyro[0];
   imu.angular_velocity.y = data.gyro[1];
   imu.angular_velocity.z = data.gyro[2];
@@ -199,6 +199,11 @@ int main(int argc, char** argv) {
   pnh.param<int>("baudrate", baudrate, 115200);
   pnh.param<std::string>("frame_id", frameId, "imu");
   pnh.param<std::string>("fixed_frame_id", fixeFrameId, "world");
+  pnh.param<double>("gravity", gravity, 0.0);
+  if (gravity <= 0.0) {
+    ROS_ERROR("Must set gravity value");
+    return -1;
+  }
   pnh.param<int>("imu_rate", requestedImuRate, 100);
   pnh.param<int>("filter_rate", requestedFilterRate, 100);
   pnh.param<bool>("enable_magnetometer", enableMagnetometer, true);

@@ -41,6 +41,7 @@
         <param name="verbose" type="bool" value="$(arg verbose)"/>
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
+        <param name="gravity" type="double" value="$(arg gravity)"/>
         <param name="fixed_frame_id" type="string" value="$(arg fixed_frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)" />
         <param name="filter_rate" type="int" value="$(arg filter_rate)"/>
