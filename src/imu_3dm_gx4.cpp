@@ -76,6 +76,8 @@ void publishData(const Imu::IMUData& data) {
 
   pressure.fluid_pressure = data.pressure;
 
+  pubIMU.publish(imu);
+  pubPressure.publish(pressure);
   if (enableMagnetometer) {
     field.magnetic_field.x = data.mag[0];
     field.magnetic_field.y = data.mag[1];
@@ -83,8 +85,6 @@ void publishData(const Imu::IMUData& data) {
   }
 
   //  publish
-  pubIMU.publish(imu);
-  pubPressure.publish(pressure);
   if (enableMagnetometer) {
     pubMag.publish(field);
   }
