@@ -27,10 +27,10 @@
     <arg name="enable_magnetometer" default="true"/>
 
     <!-- Enable/Disable the filter -->
-    <arg name="enable_filter" default="true"/>
+    <arg name="enable_filter" default="false"/>
 
     <!-- Enable/Disable filter updates -->
-    <arg name="enable_accel_update" default="true"/>
+    <arg name="enable_accel_update" default="false"/>
     <arg name="enable_mag_update" default="false"/>
 
     <!-- Publish transform when filter is enabled -->

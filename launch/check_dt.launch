@@ -1,0 +1,10 @@
+<launch>
+    <arg name="imu" default="/imu"/>
+    <arg name="data" default="imu"/>
+
+    <node pkg="imu_3dm_gx4" type="check_dt.py" name="check_dt" output="screen" ns="$(arg imu)">
+        <remap from="~imu" to="$(arg data)"/>
+        <remap from="~dt" to="dt"/>
+    </node>
+
+</launch>

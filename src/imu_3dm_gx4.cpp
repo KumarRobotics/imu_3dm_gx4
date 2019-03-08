@@ -40,7 +40,7 @@ std::shared_ptr<diagnostic_updater::TopicDiagnostic> imuDiag;
 std::shared_ptr<diagnostic_updater::TopicDiagnostic> filterDiag;
 
 void publishData(const Imu::IMUData& data) {
-  sensor_msgs::Imu imu;
+  static sensor_msgs::Imu imu;
   sensor_msgs::MagneticField field;
   sensor_msgs::FluidPressure pressure;
 
@@ -88,9 +88,9 @@ void publishData(const Imu::IMUData& data) {
   if (enableMagnetometer) {
     pubMag.publish(field);
   }
-  if (imuDiag) {
-    imuDiag->tick(imu.header.stamp);
-  }
+  //  if (imuDiag) {
+  //    imuDiag->tick(imu.header.stamp);
+  //  }
 }
 
 void publishFilter(const Imu::FilterData& data) {
@@ -152,13 +152,14 @@ void publishFilter(const Imu::FilterData& data) {
 std::shared_ptr<diagnostic_updater::TopicDiagnostic> configTopicDiagnostic(
     const std::string& name, double* target) {
   std::shared_ptr<diagnostic_updater::TopicDiagnostic> diag;
+  return diag;
   const double period = 1.0 / *target;  //  for 1000Hz, period is 1e-3
 
   diagnostic_updater::FrequencyStatusParam freqParam(target, target, 0.01, 10);
   diagnostic_updater::TimeStampStatusParam timeParam(0, period * 0.5);
   diag.reset(new diagnostic_updater::TopicDiagnostic(name, *updater, freqParam,
                                                      timeParam));
-  return diag;
+  //  return diag;
 }
 
 void updateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper& stat,
@@ -325,27 +326,27 @@ int main(int argc, char** argv) {
       pnh.setParam("diagnostic_period", 0.2);  //  5hz period
     }
 
-    updater.reset(new diagnostic_updater::Updater());
-    const std::string hwId = info.modelName + "-" + info.modelNumber;
-    updater->setHardwareID(hwId);
+    //    updater.reset(new diagnostic_updater::Updater());
+    //    const std::string hwId = info.modelName + "-" + info.modelNumber;
+    //    updater->setHardwareID(hwId);
 
     //  calculate the actual rates we will get
-    double imuRate = imuBaseRate / (1.0 * imuDecimation);
-    double filterRate = filterBaseRate / (1.0 * filterDecimation);
-    imuDiag = configTopicDiagnostic("imu", &imuRate);
-    if (enableFilter) {
-      filterDiag = configTopicDiagnostic("filter", &filterRate);
-    }
+    //    double imuRate = imuBaseRate / (1.0 * imuDecimation);
+    //    double filterRate = filterBaseRate / (1.0 * filterDecimation);
+    //    imuDiag = configTopicDiagnostic("imu", &imuRate);
+    //    if (enableFilter) {
+    //      filterDiag = configTopicDiagnostic("filter", &filterRate);
+    //    }
 
-    updater->add("diagnostic_info",
-                 boost::bind(&updateDiagnosticInfo, _1, &imu));
+    //    updater->add("diagnostic_info",
+    //                 boost::bind(&updateDiagnosticInfo, _1, &imu));
 
     ROS_INFO("Resuming the device");
     imu.resume();
 
     while (ros::ok()) {
       imu.runOnce();
-      updater->update();
+      //      updater->update();
     }
     imu.disconnect();
   } catch (Imu::io_error& e) {
